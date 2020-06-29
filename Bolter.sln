@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30204.135
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bolter", "Bolter\Bolter.csproj", "{B4C8C844-3E37-4B57-BF71-D4AA2C137496}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Demo", "Demo\Demo.csproj", "{7960B8E4-84B8-4DC7-8DA9-F69083930E4F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B4C8C844-3E37-4B57-BF71-D4AA2C137496}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4C8C844-3E37-4B57-BF71-D4AA2C137496}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4C8C844-3E37-4B57-BF71-D4AA2C137496}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4C8C844-3E37-4B57-BF71-D4AA2C137496}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7960B8E4-84B8-4DC7-8DA9-F69083930E4F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7960B8E4-84B8-4DC7-8DA9-F69083930E4F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7960B8E4-84B8-4DC7-8DA9-F69083930E4F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7960B8E4-84B8-4DC7-8DA9-F69083930E4F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {88750BB4-347A-4D1D-AAB5-D7014C70009E}
+	EndGlobalSection
+EndGlobal

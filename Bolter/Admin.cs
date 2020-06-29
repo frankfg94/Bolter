@@ -8,7 +8,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
 
-namespace KioskLib
+namespace Bolter
 {
 
     /// <summary>

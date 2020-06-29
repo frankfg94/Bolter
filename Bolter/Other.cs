@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Timers;
 
-namespace KioskLib
+namespace Bolter
 {
     public class Other
     {

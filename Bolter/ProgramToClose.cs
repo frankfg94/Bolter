@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace KioskLib
+namespace Bolter
 {
     class ProgramToClose
     {

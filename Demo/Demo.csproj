@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\KioskLib\KioskLib.csproj" />
+    <ProjectReference Include="..\Bolter\Bolter.csproj" />
   </ItemGroup>
 
 </Project>

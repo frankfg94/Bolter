@@ -1,4 +1,4 @@
-﻿using KioskLib;
+﻿using Bolter;
 using System;
 
 namespace Demo
@@ -8,6 +8,7 @@ namespace Demo
         static void Main(string[] args)
         {
             Console.WriteLine("This is the demo (console version)");
+            NonAdmin.LockTheScreen();
         }
     }
 }

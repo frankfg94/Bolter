@@ -9,7 +9,7 @@ using System.Security.AccessControl;
 using System.Timers;
 using System.Windows.Documents;
 
-namespace KioskLib
+namespace Bolter
 {
     /// <summary>
     /// This class provides useful kiosk / security commands, it does not require the windows program to be in UAC/administrator mode
@@ -66,7 +66,6 @@ namespace KioskLib
         private static IntPtr ptrHook;
         private static LowLevelKeyboardProc objKeyboardProcess;
 
-        #endregion
 
         #region resume process
         [Flags]
@@ -92,6 +91,7 @@ namespace KioskLib
 
         #endregion
 
+        #endregion
 
         [DllImport("user32")]
         private static extern void LockWorkStation();
