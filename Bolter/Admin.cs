@@ -129,64 +129,7 @@ namespace Bolter
 
         }
 
-        /// <summary>
-        /// 'Unsafe' unlock method
-        /// </summary>
-        /// <param name="folderPath"></param>
-        ///  <remarks>	<i>This requires the app to be in administrator mode </i></remarks>
-        private static void _UnlockFolder(string folderPath)
-        {
-            try
-            {
-                Console.WriteLine("Unlocking folder : " + folderPath);
-                Console.WriteLine("This can take some time...");
-                DirectoryInfo dInfo = new DirectoryInfo(folderPath);
-                DirectorySecurity dSecurity = dInfo.GetAccessControl();
-                string adminUserName = Environment.UserName;// getting your adminUserName
-                FileSystemAccessRule fsa2 = new FileSystemAccessRule(adminUserName, FileSystemRights.ListDirectory | FileSystemRights.Delete, AccessControlType.Deny);
-                dSecurity.RemoveAccessRule(fsa2);
-                dInfo.SetAccessControl(dSecurity);
-                Console.WriteLine("Unlocked");
-            }
-            catch (Exception ex)
-            {
 
-                Console.WriteLine(ex);
-                Console.ReadLine();
-            }
-        }
-
-        /// <summary>
-        /// 'Safe' unlock method. Unlocks a folder that is locked by the windows security system.
-        /// </summary>
-        ///  <remarks>	<i>This requires the app to be in administrator mode </i></remarks>
-        /// <param name="folderPath"></param>
-        public static void UnlockFolder(string folderPath)
-        {
-            try
-            {
-                string path = folderPath;
-                if (Directory.Exists(path))
-                {
-                    string adminUserName = Environment.UserName;    // getting your adminUserName
-                    if (Directory.Exists(path))
-                    {
-                        _UnlockFolder(path);
-                        File.SetAttributes(path, FileAttributes.Normal);
-                    }
-                    else
-                    {
-                        Console.WriteLine("Error : {0} is not a directory, so we cannot lock it", path);
-                    }
-                }
-
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                Console.ReadLine();
-            }
-        }
 
         /// <summary>
         /// Enable / Disable the app to start in safe mode
@@ -218,19 +161,6 @@ namespace Bolter
             }
         }
 
-        /// <summary>
-        /// Unlock all the folders paths indicated in parameter
-        /// </summary>
-        ///  <remarks>	<i>This requires the app to be in administrator mode </i></remarks>
-        /// <param name="foldersPathToUnlock"></param>
-        public static void UnlockFolders(string[] foldersPathToUnlock)
-        {
-            foreach(string folderPath in foldersPathToUnlock)
-            {
-                Console.WriteLine("Unlocking folder : " + folderPath);
-                UnlockFolder(folderPath);
-            }
-        }
 
         /// <summary>
         /// Hide in windows 10 the startup apps page (can be used to avoid disabling the software at startup)
@@ -248,12 +178,28 @@ namespace Bolter
         ///Disable all the main securities at once : Folder Locking, SettingsPageVisibility, Batch & CMD, Date Editing, Safe Startup
         /// </summary>
         ///  <remarks>	<i>This requires the app to be in administrator mode </i></remarks>
+        public static void DisableAllAdminRestrictions(string appPath)
+        {
+            DisableAllAdminRestrictions(appPath, null);
+        }
+
+        /// <summary>
+        ///Disable all the main securities at once : Folder Locking, SettingsPageVisibility, Batch & CMD, Date Editing, Safe Startup
+        /// </summary>
+        ///  <remarks>	<i>This requires the app to be in administrator mode </i></remarks>
         public static void DisableAllAdminRestrictions(string appPath, string[] foldersPathToUnlock)
         {
             Console.WriteLine("Disabling all restrictions");
             Console.WriteLine("[UNBLOCKER Admins] We chose to unlock the computer with administrator commands");
 
-            UnlockFolders(foldersPathToUnlock);
+            if(foldersPathToUnlock == null)
+            {
+                NonAdmin.UnlockAllFolders();
+            }
+            else
+            {
+                NonAdmin.UnlockFolders(foldersPathToUnlock);
+            }
 
             try
             {

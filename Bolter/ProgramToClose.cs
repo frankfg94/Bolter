@@ -16,5 +16,16 @@ namespace Bolter
             this.startTime = startTime;
             this.endTime = endTime;
         }
+
+
+        public override bool Equals(object obj)
+        {
+            return (obj as ProgramToClose).programName.Equals(programName);
+        }
+
+        public override int GetHashCode()
+        {
+            return programName.GetHashCode();
+        }
     }
 }

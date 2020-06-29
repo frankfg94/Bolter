@@ -8,7 +8,8 @@ namespace Demo
         static void Main(string[] args)
         {
             Console.WriteLine("This is the demo (console version)");
-            NonAdmin.LockTheScreen();
+            NonAdmin.RunRespawnableProgram(@"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", DateTime.Now, DateTime.Now.AddMinutes(2));
+            Console.ReadLine();
         }
     }
 }
