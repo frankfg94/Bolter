@@ -8,7 +8,7 @@ namespace Demo
         static void Main(string[] args)
         {
             Console.WriteLine("This is the demo (console version)");
-            NonAdmin.RunRespawnableProgram(@"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", DateTime.Now, DateTime.Now.AddMinutes(2));
+            Admin.SetWebsiteBlocked(false, "www.google.fr");
             Console.ReadLine();
         }
     }

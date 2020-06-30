@@ -16,7 +16,6 @@ namespace Bolter
     /// </summary>
     public static class NonAdmin
     {
-
         #region wrappers & native c++ dependencies
 
         private enum ShowWindowEnum
@@ -537,7 +536,7 @@ namespace Bolter
         }
 
         /// <summary>
-        /// Returns true if the task manager is enabled in this session. The task manager can be disabled even in the administrator session.
+        /// Return true if the task manager is enabled in this session. The task manager can be disabled even in the administrator session.
         /// </summary>
         /// <returns></returns>
         public static bool GetTaskManagerActivation()
@@ -635,7 +634,7 @@ namespace Bolter
         }
 
         /// <summary>
-        /// Gets the idle / inactivity time in milliseconds from the system (for example, the last time from which the system did detect a mouse movement or a key press), useful to see if the user is not using the computer / doing nothing
+        /// Get the idle / inactivity time in milliseconds from the system (for example, the last time from which the system did detect a mouse movement or a key press), useful to see if the user is not using the computer / doing nothing
         /// </summary>
         /// <returns></returns>
         public static uint GetIdleTime()

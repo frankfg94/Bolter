@@ -129,8 +129,6 @@ namespace Bolter
 
         }
 
-
-
         /// <summary>
         /// Enable / Disable the app to start in safe mode
         /// </summary>
@@ -236,6 +234,38 @@ namespace Bolter
 
             Console.WriteLine("\n[UNBLOCKER Admins] Success !");
         }
+
+        /// <summary>
+        /// Block / Unblock a website for any browser by editing the windows host file
+        /// </summary>
+        /// <remarks>	<i>This requires the app to be in administrator mode </i></remarks>
+        /// <param name="block"></param>
+        /// <param name="domain">Simple domain name eg. www.google.fr</param>
+        public static void SetWebsiteBlocked(bool block, string domain)
+        {
+            string path = @"C:\Windows\System32\drivers\etc\hosts";
+            if(block)
+            {
+                StreamWriter sw = new StreamWriter(path, true);
+                string sitetoblock = "\n 127.0.0.1 " + domain;
+                sw.Write(sitetoblock);
+                sw.Close();
+            }
+            else
+            {
+               var text = File.ReadAllLines(path);
+                List<string> newText = new List<string>(); 
+                foreach (var line in text)
+                {
+                    if(!line.Contains(domain))
+                    {
+                        newText.Add(line);
+                    }
+                }
+                File.WriteAllLines(path,newText);
+            }
+        }   
+
 }
 
 }
