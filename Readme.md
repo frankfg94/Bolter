@@ -1,4 +1,4 @@
-# Bolter
+![Alt text](Bolter.png?raw=true "Bolter")
 A kiosk library made with .Net Core 3.1
 
 ### Requirements : 

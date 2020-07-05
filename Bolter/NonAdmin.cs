@@ -1,13 +1,16 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
+using System.Threading;
 using System.Timers;
 using System.Windows.Documents;
+using Timer = System.Timers.Timer;
 
 namespace Bolter
 {
@@ -173,6 +176,7 @@ namespace Bolter
         internal static Timer closeProgramsTimer;
         internal static HashSet<ProgramToClose> programsToClose;
         internal static HashSet<AutoLockFolder> foldersToLock;
+        internal static HashSet<string> fileStreamsLockedPaths;
         /// <summary>
         /// Closes a program automatically between two periods of this day. The auto closer will be updated immediatly.
         /// </summary>
@@ -204,15 +208,18 @@ namespace Bolter
         /// <param name="folderPath"></param>
         internal static void RemoveAutoLockFolder(string folderPath)
         {
-            AutoLockFolder folderToRemove = null;
-            foreach (var folder in foldersToLock)
+            if(foldersToLock != null)
             {
-                if (folder.path.Equals(folderPath))
+                AutoLockFolder folderToRemove = null;
+                foreach (var folder in foldersToLock)
                 {
-                    folderToRemove = folder;
+                    if (folder.path.Equals(folderPath))
+                    {
+                        folderToRemove = folder;
+                    }
                 }
+                foldersToLock.Remove(folderToRemove);
             }
-            foldersToLock.Remove(folderToRemove);
         }
 
         /// <summary>
@@ -247,11 +254,11 @@ namespace Bolter
         }
 
         /// <summary>
-        /// Start, Stop or Edit the folder auto locker. Auto lock is powerful, use with caution.
+        /// Start, Stop or Edit the folder auto locker. Can be started automatically with <see cref="CloseProgram(string)"/>
         /// </summary>
         /// <param name="enabled"></param>
-        /// <param name="closeDelay"></param>
-        public static void SetProgramAutoCloser(bool enabled, int closeDelay = 200)
+        /// <param name="closeDelayMilliseconds">The program close frequency, increase the value for better performance but less reactivity</param>
+        public static void SetProgramAutoCloser(bool enabled, int closeDelayMilliseconds = 200)
         {
             // Creating & init
             if (closeProgramsTimer == null)
@@ -278,7 +285,7 @@ namespace Bolter
                 };
             }
             // Updating
-            closeProgramsTimer.Interval = closeDelay;
+            closeProgramsTimer.Interval = closeDelayMilliseconds;
             if (enabled)
             {
                 closeProgramsTimer.Start();
@@ -293,7 +300,7 @@ namespace Bolter
         }
 
         /// <summary>
-        /// Start, Stop or Edit the program auto closer
+        /// Start, Stop or Edit the program auto closer. Can be started automatically with <see cref="LockFolder(string, bool)"/>
         /// </summary>
         /// <param name="enabled"></param>
         /// <param name="lockDelayMilliseconds">In milliseconds</param>
@@ -359,13 +366,15 @@ namespace Bolter
                 Console.WriteLine("Unlocking folder : " + folderPath);
                 Console.WriteLine("This can take some time...");
                 // First remove it from the autolock list if necessary
-                NonAdmin.RemoveAutoLockFolder(folderPath);
+                RemoveAutoLockFolder(folderPath);
+                SetFileStreamAntiDelete(folderPath, false);
                 DirectoryInfo dInfo = new DirectoryInfo(folderPath);
                 DirectorySecurity dSecurity = dInfo.GetAccessControl();
                 string adminUserName = Environment.UserName;// getting your adminUserName
                 FileSystemAccessRule fsa2 = new FileSystemAccessRule(adminUserName, FileSystemRights.ListDirectory | FileSystemRights.Delete, AccessControlType.Deny);
                 dSecurity.RemoveAccessRule(fsa2);
                 dInfo.SetAccessControl(dSecurity);
+                SetFileStreamAntiDelete(folderPath, false);
                 Console.WriteLine("Unlocked");
             }
             catch (Exception ex)
@@ -467,22 +476,105 @@ namespace Bolter
                 }
             }
         }
+
         /// <summary>
-        /// Lock the folder with windows security. It cannot be entered by any user after that, nor deleted.
+        /// Prevent the deletion of folder or file for the given path to be deleted by indicating the message 'this file is being used by another process'. Works only while the calling application is alive. (the app that uses this function)
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="lockWithFileStream"></param>
+        private static void SetFileStreamAntiDelete(string path, bool lockWithFileStream)
+        {
+            string lockFilePath = null;
+            // path is Folder
+            if(Directory.Exists(path))
+            {
+                if(lockWithFileStream)
+                {
+                    File.Create(path + "\\lock.Bolter").Close();
+                    lockFilePath = path + "\\lock.Bolter";
+                }
+                else
+                {
+                    lockFilePath = path + "\\lock.Bolter";
+                }
+            }
+            // path is file
+            else
+            {
+                lockFilePath = path;
+            }
+
+            // Locking the folder / file
+            if(lockWithFileStream)
+            {
+                    if (fileStreamsLockedPaths == null)
+                    {
+                        fileStreamsLockedPaths = new HashSet<string>();
+                    }
+                    if( !fileStreamsLockedPaths.Contains(lockFilePath))
+                    {
+                        fileStreamsLockedPaths.Add(lockFilePath);
+
+                        // TODO : custom thread class
+                        var t = new Thread(delegate ()
+                        {
+                            Console.WriteLine($"Started Filestream thread for {lockFilePath}");
+                                    using (FileStream fs = File.Open(lockFilePath, FileMode.Open, FileAccess.Read, FileShare.None))
+                                    {
+                                        while (fileStreamsLockedPaths.Contains(lockFilePath))
+                                        {
+                                            // We keep the filestream alive
+                                            Thread.Sleep(2000);
+                                        };
+                                    }
+                        });
+                        // This thread will automatically stop if the while loop is stopped
+                        t.Start();
+                    }
+                    else
+                    {
+                        Console.WriteLine($"File at {lockFilePath} is already locked with a filestream");
+                    }
+            }
+            // Unlocking the folder / file
+            else
+            {
+                if (fileStreamsLockedPaths.Contains(lockFilePath))
+                {
+                    Console.WriteLine($"Unlocking Filestream thread for {lockFilePath}");
+                    fileStreamsLockedPaths.Remove(lockFilePath);
+                }
+                else
+                {
+                    Console.WriteLine("Cannot unlock filestream for path : " + lockFilePath + " because not part of the registered paths");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Lock the folder with windows security. It cannot be entered by any user after that, nor deleted. Should use <see cref="AddAutoLockFolder(string, DateTime, DateTime, bool, int)"/> if possible, because the unlocking is manual and not handled by the auto lock system
         /// </summary>
         /// <param name="folderPath">The path of the folder to lock</param>
         /// <param name="silent">log info to the console if set to true</param>
-        public static void LockFolder(string folderPath, bool silent)
+        public static void LockFolder(string folderPath, bool silent, bool fileStreamLock = true)
         {
             try
             {
                 DirectoryInfo dInfo = new DirectoryInfo(folderPath);
                 var dSecurity = dInfo.GetAccessControl();
-                if(!silent)
+                if(!silent) 
                     Console.WriteLine("LOCKING FOLDER : " + folderPath);
-                FileSystemAccessRule fsa = new FileSystemAccessRule(Environment.UserName, FileSystemRights.ListDirectory | FileSystemRights.Delete, AccessControlType.Deny);
+                FileSystemAccessRule fsa = new FileSystemAccessRule(Environment.UserName, FileSystemRights.ListDirectory | FileSystemRights.Delete | FileSystemRights.DeleteSubdirectoriesAndFiles, AccessControlType.Deny);
                 dSecurity.AddAccessRule(fsa);
+
                 dInfo.SetAccessControl(dSecurity);
+
+                // One more security, in case the security rule is removed too quickly, the folder can be maintained alive by a file "in use" inside it. A filestream is used to maintain an open connection with a file
+                if(fileStreamLock)
+                {
+                    SetFileStreamAntiDelete(folderPath, fileStreamLock);
+                }
+
                 if(!silent)
                     Console.WriteLine("Folder Locked successfully : " + folderPath);
             }
@@ -513,11 +605,12 @@ namespace Bolter
         /// <summary>
         /// Automatically re-lock a folder after a certain period of time. Very powerful. Use with caution
         /// </summary>
-        /// <param name="path"></param>
-        /// <param name="beginDate"></param>
-        /// <param name="endDate"></param>
-        /// <param name="lockEnabled"></param>
-        public static void AddAutoLockFolder(string path, DateTime beginDate, DateTime endDate, bool autoStartAutoLocker, int autoLockDelay = 5000)
+        /// <param name="path">The path of the folder to lock</param>
+        /// <param name="beginDate">The date from which the folder will be locked</param>
+        /// <param name="endDate">The date from which the folder will stop being locked</param>
+        /// <param name="lockEnabled">Lock (true) or Unlock (false)</param>
+        /// <param name="autoLockDelayMilliseconds">The speed of relocking, if the folder has few files, a small value is required </param>
+        public static void AddAutoLockFolder(string path, DateTime beginDate, DateTime endDate, bool autoStartAutoLocker, int autoLockDelayMilliseconds = 5000)
         {
 
             if (beginDate > endDate)
@@ -531,7 +624,7 @@ namespace Bolter
             // Start the auto locker
             if (autoStartAutoLocker && (folderLockTimer == null || !folderLockTimer.Enabled))
             {
-                SetFolderAutoLocker(true, autoLockDelay);
+                SetFolderAutoLocker(true, autoLockDelayMilliseconds);
             }
         }
 
