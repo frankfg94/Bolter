@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -10,7 +11,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Bolter\Bolter.csproj" />
+    <ProjectReference Include="..\..\VirtualDesktop-master\source\VirtualDesktop\VirtualDesktop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Bolter">
+      <HintPath>..\Bolter\bin\Debug\netcoreapp3.1\Bolter.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

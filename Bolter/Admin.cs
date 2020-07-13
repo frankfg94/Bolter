@@ -232,7 +232,20 @@ namespace Bolter
             Console.WriteLine("\n4) Disabling the software autostart on safe mode");
             SetStartupSafeMode(false, appPath);
 
+            Console.WriteLine("\n4) Disabling the software autostart on safe mode");
+
             Console.WriteLine("\n[UNBLOCKER Admins] Success !");
+        }
+    
+        /// <summary>
+        /// Disables both admin & non admin restrictions
+        /// </summary>
+        /// <param name="appPath"></param>
+        /// <param name="foldersPathToUnloc"></param>
+        public static void DisableAllPossibleRestrictions(string appPath)
+        {
+            NonAdmin.DisableAllNonAdminRestrictions();
+            DisableAllAdminRestrictions(appPath);
         }
 
         /// <summary>

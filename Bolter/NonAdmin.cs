@@ -3,13 +3,17 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.DirectoryServices;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Threading;
 using System.Timers;
+using System.Windows;
 using System.Windows.Documents;
+using WindowsDesktop;
+using System.Security.Principal;
 using Timer = System.Timers.Timer;
 
 namespace Bolter
@@ -36,6 +40,34 @@ namespace Bolter
             public uint dwTime;
         }
 
+        // Code for the task bar hiding
+        [DllImport("user32.dll")]
+        private static extern int FindWindow(string className, string windowText);
+        [DllImport("user32.dll")]
+        private static extern int GetDesktopWindow();
+        [DllImport("user32.dll")]
+        public static extern int FindWindowEx(int parentHandle, int childAfter, string className, int windowTitle);
+        [DllImport("user32.dll")]
+        private static extern int ShowWindow(int hwnd, int command);
+        static int Handle
+        {
+            get
+            {
+                return FindWindow("Shell_TrayWnd", "");
+            }
+        }
+
+        static int HandleOfStartButton
+        {
+            get
+            {
+                int handleOfDesktop = GetDesktopWindow();
+                int handleOfStartButton = FindWindowEx(handleOfDesktop, 0, "button", 0);
+                return handleOfStartButton;
+            }
+        }
+
+
         #region low level code pour désactiver ALT + TAB
         // Structure contain information about low-level keyboard input event
         [StructLayout(LayoutKind.Sequential)]
@@ -47,6 +79,9 @@ namespace Bolter
             public int time;
             public IntPtr extra;
         }
+
+        [DllImport("user32.dll")]
+        static extern int SetWindowText(IntPtr hWnd, string text);
         internal const int SM_CLEANBOOT = 67;
         [DllImport("user32.dll")]
         internal static extern int GetSystemMetrics(int smIndex);
@@ -94,6 +129,45 @@ namespace Bolter
         #endregion
 
         #endregion
+
+        // Virtual desktop management
+        [DllImport("user32.dll")]
+        private static extern IntPtr CreateDesktop(string lpszDesktop, IntPtr lpszDevice, IntPtr pDevmode, int dwFlags, uint dwDesiredAccess, IntPtr lpsa);
+        [DllImport("user32.dll")]
+        private static extern bool CloseDesktop(IntPtr handle);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetThreadDesktop(IntPtr hDesktop);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetThreadDesktop(int dwThreadId);
+
+        [DllImport("kernel32.dll")]
+        private static extern int GetCurrentThreadId();
+
+        [DllImport("user32.dll")]
+        private static extern bool SwitchDesktop(IntPtr hDesktop);
+
+        enum DesktopAccess : uint
+        {
+            DesktopReadobjects = 0x0001,
+            DesktopCreatewindow = 0x0002,
+            DesktopCreatemenu = 0x0004,
+            DesktopHookcontrol = 0x0008,
+            DesktopJournalrecord = 0x0010,
+            DesktopJournalplayback = 0x0020,
+            DesktopEnumerate = 0x0040,
+            DesktopWriteobjects = 0x0080,
+            DesktopSwitchdesktop = 0x0100,
+
+            GenericAll = DesktopReadobjects | DesktopCreatewindow | DesktopCreatemenu |
+                         DesktopHookcontrol | DesktopJournalrecord | DesktopJournalplayback |
+                         DesktopEnumerate | DesktopWriteobjects | DesktopSwitchdesktop
+        }
+
+        // Disconnect session
+        [DllImport("wtsapi32.dll", SetLastError = true)]
+        static extern bool WTSDisconnectSession(IntPtr hServer, int sessionId, bool bWait);
 
         [DllImport("user32")]
         private static extern void LockWorkStation();
@@ -187,7 +261,7 @@ namespace Bolter
         public static void AddAutoCloseProgram(string programName, TimeSpan startTime, TimeSpan endTime, bool autoStartAutoCloser = true)
         {
             if (startTime > endTime)
-                throw new Exception("We cannot have a start time superior to an end time");
+                throw new InvalidOperationException($"We cannot have a start time {startTime} superior to an end time {endTime}");
 
             if (programsToClose == null)
                 programsToClose = new HashSet<ProgramToClose>();
@@ -208,7 +282,7 @@ namespace Bolter
         /// <param name="folderPath"></param>
         internal static void RemoveAutoLockFolder(string folderPath)
         {
-            if(foldersToLock != null)
+            if (foldersToLock != null)
             {
                 AutoLockFolder folderToRemove = null;
                 foreach (var folder in foldersToLock)
@@ -244,13 +318,12 @@ namespace Bolter
             ProgramToClose prgmToClose = null;
             foreach (var prgm in programsToClose)
             {
-                if(prgm.programName.Equals(programName))
+                if (prgm.programName.Equals(programName))
                 {
                     prgmToClose = prgm;
                 }
             }
             programsToClose.Remove(prgmToClose);
-
         }
 
         /// <summary>
@@ -317,8 +390,8 @@ namespace Bolter
                     {
                         if (folder.startDate.Ticks < now && now < folder.endDate.Ticks)
                         {
-                            LockFolder(folder.path,false);
-                            HideAndProtectFolder(folder.path,true);
+                            LockFolder(folder.path, false);
+                            HideAndProtectFolder(folder.path, true);
                         }
                         else
                         {
@@ -339,7 +412,7 @@ namespace Bolter
             folderLockTimer.Interval = lockDelayMilliseconds;
             if (enabled)
             {
-                if(foldersToLock.Count == 0 )
+                if (foldersToLock.Count == 0)
                 {
                     Console.WriteLine("[Warning] Started the Auto Folder Locker, but no folders are registered");
                 }
@@ -418,14 +491,26 @@ namespace Bolter
 
         /// <summary>
         /// Unlock all previoulsy locked folders added with <see cref="NonAdmin.AddAutoLockFolder(string, DateTime, DateTime, bool, int)"/> 
+        /// <param name="disableAutoLocker">Also completely disable the auto locker, for performances purposes</param>
         /// </summary>
-        public static void UnlockAllFolders()
+        public static void UnlockAllFolders(bool disableAutoLocker = true)
         {
-            foreach (var folder in NonAdmin.foldersToLock)
+            if (foldersToLock != null)
             {
-                UnlockFolder(folder.path);
+                foreach (var folder in foldersToLock.ToList())
+                {
+                    UnlockFolder(folder.path);
+                }
+                Console.WriteLine("Unlocked " + NonAdmin.foldersToLock.Count + " folders");
+                if(disableAutoLocker)
+                {
+                    SetFolderAutoLocker(false);
+                }
             }
-            Console.WriteLine("Unlocked " + NonAdmin.foldersToLock + " folders");
+            else
+            {
+                Console.WriteLine("Didn't found any folder registered to unlock");
+            }
         }
 
         /// <summary>
@@ -486,9 +571,9 @@ namespace Bolter
         {
             string lockFilePath = null;
             // path is Folder
-            if(Directory.Exists(path))
+            if (Directory.Exists(path))
             {
-                if(lockWithFileStream)
+                if (lockWithFileStream)
                 {
                     File.Create(path + "\\lock.Bolter").Close();
                     lockFilePath = path + "\\lock.Bolter";
@@ -505,36 +590,37 @@ namespace Bolter
             }
 
             // Locking the folder / file
-            if(lockWithFileStream)
+            if (lockWithFileStream)
             {
-                    if (fileStreamsLockedPaths == null)
-                    {
-                        fileStreamsLockedPaths = new HashSet<string>();
-                    }
-                    if( !fileStreamsLockedPaths.Contains(lockFilePath))
-                    {
-                        fileStreamsLockedPaths.Add(lockFilePath);
+                if (fileStreamsLockedPaths == null)
+                {
+                    fileStreamsLockedPaths = new HashSet<string>();
+                }
+                if (!fileStreamsLockedPaths.Contains(lockFilePath))
+                {
+                    fileStreamsLockedPaths.Add(lockFilePath);
 
-                        // TODO : custom thread class
-                        var t = new Thread(delegate ()
-                        {
-                            Console.WriteLine($"Started Filestream thread for {lockFilePath}");
-                                    using (FileStream fs = File.Open(lockFilePath, FileMode.Open, FileAccess.Read, FileShare.None))
-                                    {
-                                        while (fileStreamsLockedPaths.Contains(lockFilePath))
-                                        {
-                                            // We keep the filestream alive
-                                            Thread.Sleep(2000);
-                                        };
-                                    }
-                        });
-                        // This thread will automatically stop if the while loop is stopped
-                        t.Start();
-                    }
-                    else
+                    // TODO : custom thread class
+                    var t = new Thread(delegate ()
                     {
-                        Console.WriteLine($"File at {lockFilePath} is already locked with a filestream");
-                    }
+                        Console.WriteLine($"Started Filestream thread for {lockFilePath}");
+                        using (FileStream fs = File.Open(lockFilePath, FileMode.Open, FileAccess.Read, FileShare.None))
+                        {
+                            while (fileStreamsLockedPaths.Contains(lockFilePath))
+                            {
+                                // We keep the filestream alive
+                                Thread.Sleep(2000);
+                            };
+                        }
+                        Console.WriteLine("Closing filestream!");
+                    });
+                    // This thread will automatically stop if the while loop is stopped
+                    t.Start();
+                }
+                else
+                {
+                    Console.WriteLine($"File at {lockFilePath} is already locked with a filestream");
+                }
             }
             // Unlocking the folder / file
             else
@@ -562,7 +648,7 @@ namespace Bolter
             {
                 DirectoryInfo dInfo = new DirectoryInfo(folderPath);
                 var dSecurity = dInfo.GetAccessControl();
-                if(!silent) 
+                if (!silent)
                     Console.WriteLine("LOCKING FOLDER : " + folderPath);
                 FileSystemAccessRule fsa = new FileSystemAccessRule(Environment.UserName, FileSystemRights.ListDirectory | FileSystemRights.Delete | FileSystemRights.DeleteSubdirectoriesAndFiles, AccessControlType.Deny);
                 dSecurity.AddAccessRule(fsa);
@@ -570,15 +656,16 @@ namespace Bolter
                 dInfo.SetAccessControl(dSecurity);
 
                 // One more security, in case the security rule is removed too quickly, the folder can be maintained alive by a file "in use" inside it. A filestream is used to maintain an open connection with a file
-                if(fileStreamLock)
+                if (fileStreamLock)
                 {
                     SetFileStreamAntiDelete(folderPath, fileStreamLock);
                 }
 
-                if(!silent)
+                if (!silent)
                     Console.WriteLine("Folder Locked successfully : " + folderPath);
             }
-            catch (Exception e){
+            catch (Exception e)
+            {
                 Console.WriteLine("Lock failed : " + e.Message);
             }
         }
@@ -612,9 +699,9 @@ namespace Bolter
         /// <param name="autoLockDelayMilliseconds">The speed of relocking, if the folder has few files, a small value is required </param>
         public static void AddAutoLockFolder(string path, DateTime beginDate, DateTime endDate, bool autoStartAutoLocker, int autoLockDelayMilliseconds = 5000)
         {
-
             if (beginDate > endDate)
-                throw new Exception("We cannot have a start time superior to an end time");
+                throw new InvalidOperationException($"We cannot have a start date {beginDate.ToLongTimeString()} - {beginDate.ToLongDateString()}" +
+                    $" superior to an end date {endDate.ToLongTimeString()} - {endDate.ToLongDateString()}"   );
 
             if (foldersToLock == null)
                 foldersToLock = new HashSet<AutoLockFolder>();
@@ -707,9 +794,9 @@ namespace Bolter
         /// <summary>
         /// Disable the key Alt & Tab for the current window
         /// </summary>
-        public static void DisableAltTab(bool disable)
+        public static void SetAltTabEnabled(bool enabled)
         {
-            if (disable)
+            if (!enabled)
             {
                 ProcessModule objCurrentModule = Process.GetCurrentProcess().MainModule; //Get Current Module
                 objKeyboardProcess = new LowLevelKeyboardProc(captureKey); //Assign callback function each time keyboard proces
@@ -878,7 +965,7 @@ namespace Bolter
             t.Interval = respawnDelayMilliseconds;
             t.Elapsed += (sender, e) =>
             {
-                if(respawnEnabled)
+                if (respawnEnabled)
                 {
                     var date = DateTime.Now;
                     if (date > startDate && date < endDate)
@@ -907,14 +994,210 @@ namespace Bolter
             if (runningProcessName.Length == 0)
             {
                 Console.WriteLine("Starting respawnable process : " + processPath);
-                new Process { 
-                    StartInfo = 
+                new Process
+                {
+                    StartInfo =
                     {
                         FileName = processPath,
                         Arguments = arguments
-                    }               
+                    }
                 }.Start();
             }
+        }
+
+        public static void RenameProcess(string processName, string newName)
+        {
+            Process p = Process.GetProcessesByName(processName).FirstOrDefault();
+            if(p != null)
+            {
+                SetWindowText(p.MainWindowHandle, newName);
+            }
+            else
+            {
+                Console.WriteLine($"Couldn't rename process {processName} to {newName}");
+            }
+        }
+        public static void RenameProcess(Process p, string newName)
+        {
+            SetWindowText(p.MainWindowHandle, newName);
+        }
+
+        public static void CreateLocalUser(string username, string password, string description, string userGroupName = "Users")
+        {
+            DirectoryEntry localDirectory = new DirectoryEntry("WinNT://" + Environment.MachineName.ToString());
+            DirectoryEntry newUser = localDirectory.Children.Add(username, "user");
+            newUser.Invoke("SetPassword", new object[] { password });
+            newUser.Invoke("Put", new object[] { description });
+            newUser.CommitChanges();
+
+            // Add the user to a group
+            var grp = localDirectory.Children.Find(userGroupName, "group");
+            if (grp != null)
+            {
+                grp.Invoke("Add", new object[] { newUser.Path.ToString() });
+                Console.WriteLine("User created : " + username);
+
+            }
+            else
+            {
+                Console.WriteLine($"Group {userGroupName} not found. Could not create user");
+            }
+        }
+
+
+
+        const int WTS_CURRENT_SESSION = -1;
+        static readonly IntPtr WTS_CURRENT_SERVER_HANDLE = IntPtr.Zero;
+
+        public static void LogoffThisUser()
+        {
+            if (!WTSDisconnectSession(WTS_CURRENT_SERVER_HANDLE,
+                 WTS_CURRENT_SESSION, false))
+                throw new Win32Exception();
+        }
+
+        public static void DeleteLocalUser(string username)
+        {
+            DirectoryEntry localDirectory = new DirectoryEntry("WinNT://" + Environment.MachineName.ToString());
+            DirectoryEntries users = localDirectory.Children;
+            DirectoryEntry user = users.Find(username);
+            users.Remove(user);
+            Console.WriteLine("User removed : " + username);
+        }
+
+        public static void SwitchToSpecificAccount(string accountName)
+        {
+            // Probably not possible
+            throw new NotImplementedException();
+        }
+
+        // Here i made the choice for this library to only create one virtual desktop. Because we won't need more for BolterBox
+
+
+        private static Guid baseDesktopHandle = Guid.Empty;
+        public static Guid createdDesktopHandle = Guid.Empty; // Bolter virtual desktop
+
+
+        #region VirtualDesktop Library / unstable
+
+        /// <summary>
+        /// Works only for WPF or Winforms, not .NET core console
+        /// </summary>
+        public static void CreateNewVirtualDesktop()
+        {
+            if (createdDesktopHandle == Guid.Empty)
+            {
+                createdDesktopHandle = VirtualDesktop.Create().Id;
+            }
+        }
+
+        public static void ClearAllVirtualDesktops()
+        {
+            foreach (var desktop in VirtualDesktop.GetDesktops())
+            {
+                desktop.Remove();
+            }
+        }
+
+        /// <summary>
+        /// Works only for WPF or Winforms, not .NET core console
+        /// </summary>
+        public static void CloseCreatedVirtualDesktop()
+        {
+            var desktop = VirtualDesktop.FromId(createdDesktopHandle);
+            if (desktop != null)
+            {
+                desktop.Remove();
+                createdDesktopHandle = Guid.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Works only for WPF or Winforms, not .NET core console
+        /// </summary>
+        public static void SwitchToVirtualDesktop(bool bolterDesktop)
+        {
+            var id = bolterDesktop ? createdDesktopHandle : baseDesktopHandle;
+            var desktop = VirtualDesktop.FromId(id);
+            if (desktop != null)
+            {
+                desktop.Switch();
+            }
+            else
+            {
+                Console.WriteLine("Could not switch to virtual desktop because the bolter virtual desktop is not created");
+            }
+        }
+
+        /// <summary>
+        /// Works only for WPF or Winforms, not .NET core console
+        /// </summary>
+        public static void MoveWindowToDesktop(IntPtr windowHandle, bool bolterDesktop)
+        {
+            var id = bolterDesktop ? createdDesktopHandle : baseDesktopHandle;
+            VirtualDesktopHelper.MoveToDesktop(windowHandle, VirtualDesktop.FromId(id));
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Hide or Unhide the windows task bar. It can be hidden by other ways such as maximizing an existing window, but this method can be used as an additionnal security
+        /// </summary>
+        /// <param name="isVisible"></param>
+        public static void SetTaskbarVisible(bool isVisible)
+        {
+            if (isVisible)
+            {
+                ShowWindow(Handle, 1);
+                ShowWindow(HandleOfStartButton, 1);
+            }
+            else
+            {
+                ShowWindow(Handle, 0);
+                ShowWindow(HandleOfStartButton, 0);
+            }
+        }
+
+        public static void MakeThisProgramRespawnable(bool canRespawn)
+        {
+            // throw new NotImplementedException("TODO : Create project BolterWatcher");
+        }
+
+        public static void ClearAutoClosePrograms()
+        {
+            if(programsToClose != null )
+            {
+                programsToClose.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the program is started in administrator mode
+        /// </summary>
+        /// <returns></returns>
+        public static bool IsInAdministratorMode()
+        {
+            bool isElevated = false;
+            using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
+            {
+                WindowsPrincipal principal = new WindowsPrincipal(identity);
+                isElevated = principal.IsInRole(WindowsBuiltInRole.Administrator);
+            }
+            return isElevated;
+        }
+
+        public static void DisableAllNonAdminRestrictions()
+        {
+            SetTaskManagerActivation(true);
+            SetTaskbarVisible(true);
+            SetStartup(false);
+            ClearAutoClosePrograms();
+            SetProgramAutoCloser(false, 1000);
+            ClearAllVirtualDesktops();
+            UnlockAllFolders();
+            MakeThisProgramRespawnable(false);
+            CloseCreatedVirtualDesktop();
+            SetAltTabEnabled(true);
         }
     }
 }
