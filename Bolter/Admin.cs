@@ -142,6 +142,10 @@ namespace Bolter
             var key = Registry.LocalMachine.OpenSubKey(keyPath,true);
             if(key != null)
             {
+                if (applicationFullPath.Equals(applicationFullPath))
+                {
+                    applicationFullPath = System.Reflection.Assembly.GetEntryAssembly().Location;
+                }
                 string safeModePrograms = (string)key.GetValue("Shell");
                 if (autoStartEnabled)
                 {

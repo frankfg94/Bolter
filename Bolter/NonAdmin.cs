@@ -15,6 +15,8 @@ using System.Windows.Documents;
 using WindowsDesktop;
 using System.Security.Principal;
 using Timer = System.Timers.Timer;
+using Microsoft.CSharp;
+using System.CodeDom.Compiler;
 
 namespace Bolter
 {
@@ -929,20 +931,23 @@ namespace Bolter
             {
                 foreach (ProcessThread pT in p.Threads)
                 {
-                    IntPtr pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)pT.Id);
-
-                    if (pOpenThread == IntPtr.Zero)
+                    if(pT.ThreadState == System.Diagnostics.ThreadState.Wait)
                     {
-                        continue;
+                        IntPtr pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)pT.Id);
+
+                        if (pOpenThread == IntPtr.Zero)
+                        {
+                            continue;
+                        }
+
+                        var suspendCount = 0;
+                        do
+                        {
+                            suspendCount = ResumeThread(pOpenThread);
+                        } while (suspendCount > 0);
+
+                        CloseHandle(pOpenThread);
                     }
-
-                    var suspendCount = 0;
-                    do
-                    {
-                        suspendCount = ResumeThread(pOpenThread);
-                    } while (suspendCount > 0);
-
-                    CloseHandle(pOpenThread);
                 }
             }
         }
@@ -1157,9 +1162,40 @@ namespace Bolter
                 ShowWindow(HandleOfStartButton, 0);
             }
         }
-
-        public static void MakeThisProgramRespawnable(bool canRespawn)
+        private static int respawnerProcessId = -1;
+        public static void MakeThisProgramRespawnable(bool canRespawn, string[] verificatorProcesses)
         {
+            if (canRespawn)
+            {
+                Process p = new Process();
+                respawnerProcessId = p.Id;
+
+                // Adding the exe path for the program to be respawned
+                p.StartInfo.ArgumentList.Add(System.Reflection.Assembly.GetEntryAssembly().Location);
+                // Adding the processes linked to the exe path that tell the program not to be respawned
+                
+                if(verificatorProcesses == null)
+                {
+                    verificatorProcesses = new string[0];
+                }
+                
+                foreach (var path in verificatorProcesses)
+                {
+                    p.StartInfo.ArgumentList.Add(path);
+                }
+
+                p.StartInfo.FileName = Environment.CurrentDirectory + @"Bolter\Resources\BolterRespawner.exe";
+                p.Start();
+            }
+            else if(respawnerProcessId != -1)
+            {
+                Process.GetProcessById(respawnerProcessId).Kill();
+                respawnerProcessId = -1;
+            }
+            else
+            {
+                Console.WriteLine("Respawner must before closing it first");
+            }
             // throw new NotImplementedException("TODO : Create project BolterWatcher");
         }
 
@@ -1195,7 +1231,7 @@ namespace Bolter
             SetProgramAutoCloser(false, 1000);
             ClearAllVirtualDesktops();
             UnlockAllFolders();
-            MakeThisProgramRespawnable(false);
+            MakeThisProgramRespawnable(false,null);
             CloseCreatedVirtualDesktop();
             SetAltTabEnabled(true);
         }

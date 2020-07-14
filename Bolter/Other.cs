@@ -28,6 +28,14 @@ namespace Bolter
             }
         }
 
-
+        public static void Warn(string message)
+        {
+            var oldColor = Console.BackgroundColor;
+            Console.WriteLine("----------------// BOLTER WARNING //-------------------");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(message);
+            Console.WriteLine("-------------------------------------------------------");
+            Console.ForegroundColor = oldColor;
+        }
     }
 }

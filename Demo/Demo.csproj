@@ -11,13 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\VirtualDesktop-master\source\VirtualDesktop\VirtualDesktop.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="Bolter">
-      <HintPath>..\Bolter\bin\Debug\netcoreapp3.1\Bolter.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\Bolter\Bolter.csproj" />
   </ItemGroup>
 
 </Project>
