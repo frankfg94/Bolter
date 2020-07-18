@@ -222,6 +222,7 @@ namespace Bolter
         /// <param name="programName"></param>
         public static void CloseProgram(string programName)
         {
+            // TODO : optimize if mediocre perf (88% of the profiler)
             foreach (var process in Process.GetProcessesByName(programName))
             {
                 process.Kill();
@@ -627,14 +628,17 @@ namespace Bolter
             // Unlocking the folder / file
             else
             {
-                if (fileStreamsLockedPaths.Contains(lockFilePath))
+                if(fileStreamsLockedPaths != null)
                 {
-                    Console.WriteLine($"Unlocking Filestream thread for {lockFilePath}");
-                    fileStreamsLockedPaths.Remove(lockFilePath);
-                }
-                else
-                {
-                    Console.WriteLine("Cannot unlock filestream for path : " + lockFilePath + " because not part of the registered paths");
+                    if (fileStreamsLockedPaths.Contains(lockFilePath))
+                    {
+                        Console.WriteLine($"Unlocking Filestream thread for {lockFilePath}");
+                        fileStreamsLockedPaths.Remove(lockFilePath);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Cannot unlock filestream for path : " + lockFilePath + " because not part of the registered paths");
+                    }
                 }
             }
         }
@@ -1222,6 +1226,7 @@ namespace Bolter
             return isElevated;
         }
 
+
         public static void DisableAllNonAdminRestrictions()
         {
             SetTaskManagerActivation(true);
@@ -1230,6 +1235,7 @@ namespace Bolter
             ClearAutoClosePrograms();
             SetProgramAutoCloser(false, 1000);
             ClearAllVirtualDesktops();
+            UnlockFolder(AppDomain.CurrentDomain.BaseDirectory);
             UnlockAllFolders();
             MakeThisProgramRespawnable(false,null);
             CloseCreatedVirtualDesktop();

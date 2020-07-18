@@ -13,7 +13,7 @@ namespace Demo
         {
             Console.WriteLine("This is the demo (console version)");
             // folderLockTest();
-            NonAdmin.SetTaskbarVisible(true);
+            Admin.SetStartupSafeMode(false);
         }
 
 

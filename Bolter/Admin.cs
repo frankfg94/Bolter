@@ -156,6 +156,11 @@ namespace Bolter
                 else
                     // Remove the app path without touching at the other datas
                     key.SetValue("Shell",safeModePrograms.Replace(";"+applicationFullPath,string.Empty));
+                if (safeModePrograms.Last().Equals(';'))
+                {
+                    // Remove the last comma
+                    key.SetValue("Shell", safeModePrograms.Substring(0,safeModePrograms.Length - 1));
+                }
             }
             else
             {

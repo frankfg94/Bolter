@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Text;
 using System.Timers;
 
@@ -36,6 +37,33 @@ namespace Bolter
             Console.WriteLine(message);
             Console.WriteLine("-------------------------------------------------------");
             Console.ForegroundColor = oldColor;
+        }
+
+        /// <summary>
+        /// Vérifie si l'adresse URL entrée existe bel et bien, et que le site est en état de marche
+        /// </summary>
+        /// <param name="url"></param>
+        /// <returns></returns>
+        public static bool UrlAddressIsExisting(string url)
+        {
+            return Uri.IsWellFormedUriString(url, UriKind.Absolute);
+            /*
+            if (string.IsNullOrWhiteSpace(url))
+                return false;
+            try
+            {
+                HttpWebRequest request = WebRequest.Create(url) as HttpWebRequest;
+                request.Method = "HEAD";
+                HttpWebResponse response = request.GetResponse() as HttpWebResponse;
+                response.Close();
+                return (response.StatusCode == HttpStatusCode.OK);
+            }
+            catch
+            {
+                //Any exception will returns false.
+                return false;
+            }
+            */
         }
     }
 }
