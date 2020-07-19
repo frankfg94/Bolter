@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bolter\Bolter.csproj" />
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="echo &quot;copying $(OutDir)BolterAdminApp.exe to Bolter Resources folder&quot;&#xD;&#xA;copy &quot;$(OutDir)BolterAdminApp.exe&quot; &quot;$(SolutionDir)Bolter\Resources&quot;&#xD;&#xA;echo &quot;copying $(OutDir)BolterAdminApp.dll to Bolter Resources folder&quot;&#xD;&#xA;copy &quot;$(OutDir)BolterAdminApp.dll&quot; &quot;$(SolutionDir)Bolter\Resources&quot;&#xD;&#xA;copy &quot;$(OutDir)BolterAdminApp.runtimeconfig.json&quot; &quot;$(SolutionDir)Bolter\Resources&quot;&#xD;&#xA;" />
+  </Target>
+
+</Project>

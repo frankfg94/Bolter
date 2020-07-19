@@ -6,7 +6,9 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.ServiceProcess;
 using System.Text;
+using System.Threading;
 
 namespace Bolter
 {
@@ -129,6 +131,76 @@ namespace Bolter
 
         }
 
+
+
+        /// <summary>
+        /// Install a service automatically from the folder AdminBolterService as LocalSystem (highest possible privileges)
+        /// </summary>
+        /// <param name="serviceExeName">Name of the executable without the exe</param>
+        public static void InstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service", bool autoStart = true)
+        {
+            System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+            cmd.StartInfo.FileName = "cmd.exe";
+            cmd.StartInfo.RedirectStandardInput = true;
+            cmd.StartInfo.RedirectStandardOutput = true;
+            cmd.StartInfo.RedirectStandardError = true;
+            //cmd.StartInfo.CreateNoWindow = true;
+            cmd.StartInfo.UseShellExecute = false;
+            cmd.Start();
+            cmd.OutputDataReceived += (sender, e) => { Console.WriteLine(e.Data); };
+            cmd.ErrorDataReceived += (sender, e) => { Bolter.Other.Warn(e.Data); };
+            cmd.BeginOutputReadLine();
+            cmd.BeginErrorReadLine();
+
+            string solutionPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.FullName;
+            var path = solutionPath + @$"\AdminBolterService\bin\Release\netcoreapp3.1\publish\{serviceExeName}.exe";
+            var commandCreateService = $"sc create \"{serviceName}\" binPath=" + path ;
+            if(!File.Exists(path))
+            {
+                throw new FileNotFoundException("The file doesn't exist at :" + path);
+            }
+
+
+            using (StreamWriter sw = cmd.StandardInput)
+            {
+                if (sw.BaseStream.CanWrite)
+                {
+                    Console.WriteLine($"sc stop \"{serviceName}\"");
+                    sw.WriteLine($"sc stop \"{serviceName}\"");
+                    Thread.Sleep(5000);
+                    Console.WriteLine(">>> Service stopped");
+
+                    Console.WriteLine($"sc delete \"{serviceName}\"");
+                    sw.WriteLine($"sc delete \"{serviceName}\"");
+                    Thread.Sleep(5000);
+                    Console.WriteLine(">>> Service deleted");
+
+                    Console.WriteLine(commandCreateService);
+                    sw.WriteLine(commandCreateService);
+                    Console.WriteLine(">>> Service created");
+
+                    Console.WriteLine($"sc query \"{serviceName}\"");
+                    sw.WriteLine($"sc query \"{serviceName}\"");
+                    Console.WriteLine(">>> Query done");
+
+                    if (autoStart)
+                    {
+                        Console.WriteLine("sc config \"Bolter Admin Service\" start=\"auto\"");
+                        sw.WriteLine("sc config \"Bolter Admin Service\" start=\"auto\"");
+                        Console.WriteLine(">>> Automatic startup set");
+                        Thread.Sleep(200);
+
+                    }
+
+                    Console.WriteLine($"sc start \"{serviceName}\"");
+                    sw.WriteLine($"sc start \"{serviceName}\"");
+                    Console.WriteLine(">>> Service started");
+                }
+            }
+            cmd.WaitForExit();
+
+        }
+
         /// <summary>
         /// Enable / Disable the app to start in safe mode
         /// </summary>
@@ -226,24 +298,22 @@ namespace Bolter
             catch (Exception) { }
 
             //nt enable
-            Console.Write("\n1) Installing NtRights");
+            Console.Write("\n1) Installing NtRights...");
             InstallNtRights();
             Console.Write("     Success !");
 
-            Console.WriteLine("\n2) Re activating CMD & batch scripts");
+            Console.Write("\n2) Re activating CMD & batch scripts...");
             SetBatchAndCMDBlock(false);
             Console.Write("     Success !");
 
-            Console.WriteLine("\n3) Re activating date editing (using ntrights.exe)");
+            Console.Write("\n3) Re activating date editing (using ntrights.exe)...");
             PreventDateEditingW10(false);
             Console.Write("     Success !");
 
-            Console.WriteLine("\n4) Disabling the software autostart on safe mode");
+            Console.Write("\n4) Disabling the software autostart on safe mode...");
             SetStartupSafeMode(false, appPath);
 
-            Console.WriteLine("\n4) Disabling the software autostart on safe mode");
-
-            Console.WriteLine("\n[UNBLOCKER Admins] Success !");
+            Console.Write("\n[UNBLOCKER Admins] Success !");
         }
     
         /// <summary>

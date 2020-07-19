@@ -31,12 +31,12 @@ namespace Bolter
 
         public static void Warn(string message)
         {
-            var oldColor = Console.BackgroundColor;
-            Console.WriteLine("----------------// BOLTER WARNING //-------------------");
+            var oldColor = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("----------------// BOLTER WARNING //-------------------");
             Console.WriteLine(message);
             Console.WriteLine("-------------------------------------------------------");
-            Console.ForegroundColor = oldColor;
+            Console.ResetColor();
         }
 
         /// <summary>

@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command=":: Commented everything because exe doesn't run correctly if run from resources folder&#xD;&#xA;&#xD;&#xA;&#xD;&#xA;::echo &quot;copying $(OutDir)BridgeProcess.exe to Bolter Resources folder&quot;&#xD;&#xA;::copy &quot;$(OutDir)BridgeProcess.exe&quot; &quot;$(SolutionDir)Bolter\Resources&quot;&#xD;&#xA;::echo &quot;copying $(OutDir)BridgeProcess.dll to Bolter Resources folder&quot;&#xD;&#xA;::copy &quot;$(OutDir)BridgeProcess.dll&quot; &quot;$(SolutionDir)Bolter\Resources&quot;&#xD;&#xA;::echo &quot;copying JSON dependencies to Bolter Resources folder&quot;&#xD;&#xA;::copy &quot;$(OutDir)&quot; &quot;$(SolutionDir)Bolter\Resources&quot;" />
+  </Target>
+
+</Project>
