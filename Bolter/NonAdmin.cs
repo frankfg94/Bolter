@@ -232,7 +232,7 @@ namespace Bolter
         /// <summary>
         /// Triggered when a program is added or removed in the collection <see cref="programsToClose"/> 
         /// </summary>
-        private static event EventHandler<AutoCloseChangedArgs> AutoCloseProgramListChanged;
+        public static event EventHandler<AutoCloseChangedArgs> AutoCloseProgramListChanged;
 
         public static void OnAutoLockFolderListChanged(AutoLockChangedArgs args)
         {
