@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Bolter
 {
-    class ProgramToClose
+    public class ProgramToClose
     {
         public string programName;
         public TimeSpan startTime;

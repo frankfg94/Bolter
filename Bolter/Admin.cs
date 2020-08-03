@@ -132,7 +132,39 @@ namespace Bolter
         }
 
 
+        public static void UninstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service")
+        {
+            System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+            cmd.StartInfo.FileName = "cmd.exe";
+            cmd.StartInfo.RedirectStandardInput = true;
+            cmd.StartInfo.RedirectStandardOutput = true;
+            cmd.StartInfo.RedirectStandardError = true;
+            //cmd.StartInfo.CreateNoWindow = true;
+            cmd.StartInfo.UseShellExecute = false;
+            cmd.Start();
+            cmd.OutputDataReceived += (sender, e) => { Console.WriteLine(e.Data); };
+            cmd.ErrorDataReceived += (sender, e) => { Bolter.Other.Warn(e.Data); };
+            cmd.BeginOutputReadLine();
+            cmd.BeginErrorReadLine();
 
+            using (StreamWriter sw = cmd.StandardInput)
+            {
+                if (sw.BaseStream.CanWrite)
+                {
+                    Console.WriteLine($"sc stop \"{serviceName}\"");
+                    sw.WriteLine($"sc stop \"{serviceName}\"");
+                    Thread.Sleep(5000);
+                    Console.WriteLine(">>> Service stopped");
+                    
+                    Console.WriteLine($"sc delete \"{serviceName}\"");
+                    sw.WriteLine($"sc delete \"{serviceName}\"");
+                    Thread.Sleep(5000);
+                    Console.WriteLine(">>> Service deleted");
+                }
+            }
+            cmd.WaitForExit();
+
+        }
         /// <summary>
         /// Install a service automatically from the folder AdminBolterService as LocalSystem (highest possible privileges)
         /// </summary>

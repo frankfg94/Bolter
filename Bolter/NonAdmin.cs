@@ -199,6 +199,52 @@ namespace Bolter
 
         #endregion
 
+        #region AutoCloser & AutoLocker event handling
+
+        public enum FolderListAction
+        {
+            Added = 0,
+            Removed = 1
+        }
+
+        public enum ProgramListAction
+        {
+            Added = 0,
+            Removed = 1
+        }
+
+        public class AutoLockChangedArgs : EventArgs
+        {
+            public FolderListAction FolderAction { get; set; }
+            public FolderToLock folderToLock;
+        }
+
+        public class AutoCloseChangedArgs : EventArgs
+        {
+            public ProgramListAction ProgramAction { get; set; }
+            public ProgramToClose programToClose;
+        }
+
+        /// <summary>
+        /// Triggered when a folder is added or removed in the collection <see cref="foldersToLock"/> 
+        /// </summary>
+        public static event EventHandler<AutoLockChangedArgs> AutoLockFolderListChanged;
+        /// <summary>
+        /// Triggered when a program is added or removed in the collection <see cref="programsToClose"/> 
+        /// </summary>
+        private static event EventHandler<AutoCloseChangedArgs> AutoCloseProgramListChanged;
+
+        public static void OnAutoLockFolderListChanged(AutoLockChangedArgs args)
+        {
+            AutoLockFolderListChanged?.Invoke(foldersToLock, args);
+        }
+
+        public static void OnAutoCloseProgramListChanged(AutoCloseChangedArgs args)
+        {
+            AutoCloseProgramListChanged?.Invoke(programsToClose, args);
+        }
+        #endregion
+
         /// <summary>
         /// Enable or disable windows automatic foreground switch
         /// </summary>
@@ -260,7 +306,7 @@ namespace Bolter
         // Timer that closes the programs from the programsToClose List
         internal static Timer closeProgramsTimer;
         internal static HashSet<ProgramToClose> programsToClose;
-        internal static HashSet<AutoLockFolder> foldersToLock;
+        internal static HashSet<FolderToLock> foldersToLock;
         internal static HashSet<string> fileStreamsLockedPaths;
         /// <summary>
         /// Closes a program automatically between two periods of this day. The auto closer will be updated immediatly.
@@ -277,7 +323,17 @@ namespace Bolter
             if (programsToClose == null)
                 programsToClose = new HashSet<ProgramToClose>();
 
-            programsToClose.Add(new ProgramToClose(programName, startTime, endTime));
+            var prgm = new ProgramToClose(programName, startTime, endTime);
+
+            // If we added the program, trigger the event
+            if ( programsToClose.Add(prgm) )
+            {
+                OnAutoCloseProgramListChanged(new AutoCloseChangedArgs
+                {
+                    ProgramAction = ProgramListAction.Added,
+                    programToClose = prgm 
+                });
+            }
 
             // Start the auto closer
             if (autoStartAutoCloser && (closeProgramsTimer == null || !closeProgramsTimer.Enabled))
@@ -295,7 +351,7 @@ namespace Bolter
         {
             if (foldersToLock != null)
             {
-                AutoLockFolder folderToRemove = null;
+                FolderToLock folderToRemove = null;
                 foreach (var folder in foldersToLock)
                 {
                     if (folder.path.Equals(folderPath))
@@ -303,7 +359,14 @@ namespace Bolter
                         folderToRemove = folder;
                     }
                 }
-                foldersToLock.Remove(folderToRemove);
+                if (foldersToLock.Remove(folderToRemove))
+                {
+                        OnAutoLockFolderListChanged(new AutoLockChangedArgs
+                        {
+                            FolderAction = FolderListAction.Removed,
+                            folderToLock = folderToRemove
+                        });
+                }
             }
         }
 
@@ -334,7 +397,14 @@ namespace Bolter
                     prgmToClose = prgm;
                 }
             }
-            programsToClose.Remove(prgmToClose);
+            if(programsToClose.Remove(prgmToClose))
+            {
+                    OnAutoCloseProgramListChanged(new AutoCloseChangedArgs
+                    {
+                        ProgramAction = ProgramListAction.Removed,
+                        programToClose = prgmToClose
+                    });
+            }
         }
 
         /// <summary>
@@ -718,9 +788,18 @@ namespace Bolter
                     $" superior to an end date {endDate.ToLongTimeString()} - {endDate.ToLongDateString()}"   );
 
             if (foldersToLock == null)
-                foldersToLock = new HashSet<AutoLockFolder>();
+                foldersToLock = new HashSet<FolderToLock>();
 
-            foldersToLock.Add(new AutoLockFolder(path, beginDate, endDate));
+            var folder = new FolderToLock(path, beginDate, endDate);
+            
+            if (foldersToLock.Add(folder))
+            {
+                OnAutoLockFolderListChanged(new AutoLockChangedArgs
+                {
+                    FolderAction = FolderListAction.Added,
+                    folderToLock = folder
+                });
+            }
 
             // Start the auto locker
             if (autoStartAutoLocker && (folderLockTimer == null || !folderLockTimer.Enabled))
