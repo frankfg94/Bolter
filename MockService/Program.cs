@@ -17,7 +17,7 @@ namespace MockService
         static void Main(string[] args)
         {
             Console.WriteLine(">>> This is the mock service <<<");
-            IpcServer server = new IpcServer();
+            PipeServer server = new PipeServer();
             server.Start();
         }
    

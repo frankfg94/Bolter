@@ -216,7 +216,7 @@ namespace Bolter
         public class AutoLockChangedArgs : EventArgs
         {
             public FolderListAction FolderAction { get; set; }
-            public FolderToLock folderToLock;
+            public AutoLockFolder folderToLock;
         }
 
         public class AutoCloseChangedArgs : EventArgs
@@ -306,7 +306,7 @@ namespace Bolter
         // Timer that closes the programs from the programsToClose List
         internal static Timer closeProgramsTimer;
         internal static HashSet<ProgramToClose> programsToClose;
-        internal static HashSet<FolderToLock> foldersToLock;
+        internal static HashSet<AutoLockFolder> foldersToLock;
         internal static HashSet<string> fileStreamsLockedPaths;
         /// <summary>
         /// Closes a program automatically between two periods of this day. The auto closer will be updated immediatly.
@@ -351,7 +351,7 @@ namespace Bolter
         {
             if (foldersToLock != null)
             {
-                FolderToLock folderToRemove = null;
+                AutoLockFolder folderToRemove = null;
                 foreach (var folder in foldersToLock)
                 {
                     if (folder.path.Equals(folderPath))
@@ -558,7 +558,7 @@ namespace Bolter
                     }
                     else
                     {
-                        Console.WriteLine("Error : {0} is not a directory, so we cannot lock it", path);
+                        Console.WriteLine($"Error : {path} is not a directory, so we cannot lock it");
                     }
                 }
 
@@ -788,9 +788,9 @@ namespace Bolter
                     $" superior to an end date {endDate.ToLongTimeString()} - {endDate.ToLongDateString()}"   );
 
             if (foldersToLock == null)
-                foldersToLock = new HashSet<FolderToLock>();
+                foldersToLock = new HashSet<AutoLockFolder>();
 
-            var folder = new FolderToLock(path, beginDate, endDate);
+            var folder = new AutoLockFolder(path, beginDate, endDate);
             
             if (foldersToLock.Add(folder))
             {
@@ -1014,10 +1014,11 @@ namespace Bolter
         /// <param name="processName"></param>
         public static void ResumeProcess(string processName)
         {
+            if (string.IsNullOrEmpty(processName))
+                return;
+
             var process = Process.GetProcessesByName(processName);
 
-            if (processName == string.Empty)
-                return;
             foreach (Process p in process)
             {
                 foreach (ProcessThread pT in p.Threads)
@@ -1138,6 +1139,7 @@ namespace Bolter
             {
                 Console.WriteLine($"Group {userGroupName} not found. Could not create user");
             }
+            localDirectory.Dispose();
         }
 
 
@@ -1158,6 +1160,7 @@ namespace Bolter
             DirectoryEntries users = localDirectory.Children;
             DirectoryEntry user = users.Find(username);
             users.Remove(user);
+            localDirectory.Dispose();
             Console.WriteLine("User removed : " + username);
         }
 
@@ -1270,7 +1273,7 @@ namespace Bolter
                 
                 if(verificatorProcesses == null)
                 {
-                    verificatorProcesses = new string[0];
+                    verificatorProcesses = Array.Empty<string>();
                 }
                 
                 foreach (var path in verificatorProcesses)

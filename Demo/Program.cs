@@ -24,11 +24,11 @@ namespace Demo
         {
             if(install)
             Admin.InstallService();
-            var client = new IpcClient();
+            var client = new PipeClient();
             client.ConnectToAdminBolterService(4  * 1000); // We give 30 seconds for the service to load
             client.SendMessage("First_msg");
             client.SendMessage("2nd_msg");
-            client.SendMessage("last msg");
+            client.SendMessage("last msg"); 
             client.SendMessage("2nd_msg_2");
             client.RequestSetBatchAndCMDBlock(false);
 
@@ -45,7 +45,7 @@ namespace Demo
                 client.RequestSetBatchAndCMDBlock(false);
                 // Reconnect test
                 client.Stop();
-                client = new IpcClient();
+                client = new PipeClient();
                 client.ConnectToAdminBolterService(4 * 1000);
                 client.SendMessage("Hello");
                 Thread.Sleep(3000);
@@ -60,11 +60,11 @@ namespace Demo
 
         static void  IPCAdminBridgeTest()
         {
-            var server =  new IpcClient();
+            var server =  new PipeClient();
             // TODO relative paths
             var bridgePath = @"C:\Users\franc\source\repos\Bolter\BridgeProcess\bin\Debug\netcoreapp3.1\BridgeProcess.exe";
             var adminAppPath = @"C:\Users\franc\source\repos\Bolter\Bolter\Resources\BolterAdminApp.exe";
-            server.ConnectToClient(adminAppPath,bridgePath);
+            server.ConnectToBridge(adminAppPath,bridgePath);
             Console.WriteLine("Connected");
             server.SendMessage("unblock");
             server.SendMessage("ooo");

@@ -4,13 +4,13 @@ using System.Text;
 
 namespace Bolter
 {
-    public class FolderToLock
+    public class AutoLockFolder
     {
         public string path;
         public DateTime startDate;
         public DateTime endDate;
 
-        public FolderToLock(string programName, DateTime startTime, DateTime endTime)
+        public AutoLockFolder(string programName, DateTime startTime, DateTime endTime)
         {
             this.path = programName;
             this.startDate = startTime;
@@ -19,7 +19,8 @@ namespace Bolter
 
         public override bool Equals(object obj)
         {
-            return (obj as FolderToLock).path.Equals(path);
+            AutoLockFolder folder = obj as AutoLockFolder;
+            return obj!=null && folder.path.Equals(path, StringComparison.Ordinal);
         }
 
         public override int GetHashCode()

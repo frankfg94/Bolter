@@ -9,23 +9,26 @@ using System.Threading.Tasks;
 namespace Bolter.BolterAdminApp
 {
     // At the moment IPC does work very well if the service was started a few minutes ago, but if we test it directly with install, it creates problems (not connected or pipebroken)
-    public class IpcClient : IPCAdminInterface
+    public class PipeClient : IPCAdminInterface, IDisposable
     {
         public static string message = null;
         Process bridge = null;
+        /// <summary>
+        /// Triggered when a message must be send to the IpcServer
+        /// </summary>
         private event EventHandler<StringArg> RequestMessageSend;
         NamedPipeClientStream client;
 
 
-        private void ConsoleClientWrite(string msg)
+        private static void ConsoleClientWrite(string msg)
         {
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write("[CLIENT] ");
             Console.ResetColor();
-            Console.Write(msg );
+            Console.Write(msg);
         }
 
-        private void ConsoleServerWriteLine(string msg)
+        private static void ConsoleServerWriteLine(string msg)
         {
             Console.ForegroundColor = ConsoleColor.Blue;
             Console.Write("[SERVER] ");
@@ -33,15 +36,20 @@ namespace Bolter.BolterAdminApp
             Console.Write(msg + Environment.NewLine);
         }
 
+        public bool IsConnected()
+        {
+            return client.IsConnected;
+        }
+
         /// <summary>
         /// Start the server that connects to the remote process or the remote service
         /// </summary>
-        public void StartTheClient()
+        private void Start()
         {
-             client = new NamedPipeClientStream("PipesOfPiece");
-                Console.WriteLine("Connecting...");
+                client = new NamedPipeClientStream(Properties.Resources.named_pipes_name);
+                Console.WriteLine(Properties.Resources.connecting);
                 client.Connect();
-                Console.WriteLine("Connected!");
+                Console.WriteLine(Properties.Resources.connected);
                 StreamReader reader = new StreamReader(client);
                 StreamWriter writer = new StreamWriter(client);
                 this.RequestMessageSend += (s, arg) =>
@@ -78,7 +86,7 @@ namespace Bolter.BolterAdminApp
                 {
                     bridge.Kill();
                 }
-                Console.WriteLine("[SERVER] Client quit. Server terminating.");
+                ConsoleServerWriteLine(Properties.Resources.client_quit);
             }
             catch (Exception e)
             {
@@ -91,43 +99,50 @@ namespace Bolter.BolterAdminApp
 
         public void ConnectToAdminBolterService(int delayMs)
         {
-            StartTheClient();
+            Start();
             Task.Delay(delayMs).Wait();
         }
 
         // A bridge process is required to make ipc work with uac ....
-        public void ConnectToClient(string ipcClientExePath, string bridgeExePath, string thisAppExePath)
+        public void ConnectToBridge(string ipcClientExePath, string bridgeExePath, string thisAppExePath)
         {
 
             bridge = new Process();
-            if (thisAppExePath.EndsWith(".dll"))
+            if(thisAppExePath != null && bridgeExePath != null && ipcClientExePath != null)
             {
-                thisAppExePath = thisAppExePath.Replace(".dll", ".exe");
+                if (thisAppExePath.EndsWith(".dll", StringComparison.Ordinal))
+                {
+                    thisAppExePath = thisAppExePath.Replace(".dll", ".exe", StringComparison.Ordinal);
+                }
+                bridge.StartInfo.FileName = bridgeExePath;
+
+
+                // Pass the client process a handle to the server.
+                bridge.StartInfo.ArgumentList.Add("uac:" + ipcClientExePath);
+                bridge.StartInfo.ArgumentList.Add("p:" + thisAppExePath);
+
+
+                bridge.StartInfo.UseShellExecute = true; // required for uac prompt
+                bridge.StartInfo.Verb = "runas"; // will throw win32 exception if the process is not administrator
+                bridge.OutputDataReceived += PipeClient_OutputDataReceived;
+                bridge.ErrorDataReceived += PipeClient_ErrorDataReceived;
+                try
+                {
+                    bridge.Start();
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine($"The UAC was denied for {bridge.StartInfo.FileName}");
+                    throw;
+                }
+                Start();
+                Task.Delay(1000).Wait();
+                bridge.WaitForExit();
             }
-            bridge.StartInfo.FileName = bridgeExePath;
-
-
-            // Pass the client process a handle to the server.
-            bridge.StartInfo.ArgumentList.Add("uac:" + ipcClientExePath);
-            bridge.StartInfo.ArgumentList.Add("p:" + thisAppExePath);
-
-
-            bridge.StartInfo.UseShellExecute = true; // required for uac prompt
-            bridge.StartInfo.Verb = "runas"; // will throw win32 exception if the process is not administrator
-            bridge.OutputDataReceived += PipeClient_OutputDataReceived;
-            bridge.ErrorDataReceived += PipeClient_ErrorDataReceived;
-            try
+            else
             {
-                bridge.Start();
+                throw new NullReferenceException("One of the paths is null");
             }
-            catch (Exception)
-            {
-                Console.WriteLine($"The UAC was denied for {bridge.StartInfo.FileName}");
-                throw;
-            }
-            StartTheClient();
-            Task.Delay(1000).Wait();
-            bridge.WaitForExit();
         }
 
 
@@ -136,9 +151,9 @@ namespace Bolter.BolterAdminApp
             Console.WriteLine(e.Data);
         }
 
-        public void ConnectToClient(string ipcClientExePath, string bridgeExePath)
+        public void ConnectToBridge(string ipcClientExePath, string bridgeExePath)
         {
-            ConnectToClient(ipcClientExePath, bridgeExePath, System.Reflection.Assembly.GetEntryAssembly().Location);
+            ConnectToBridge(ipcClientExePath, bridgeExePath, System.Reflection.Assembly.GetEntryAssembly().Location);
         }
 
         private void PipeClient_OutputDataReceived(object sender, DataReceivedEventArgs e)
@@ -176,7 +191,6 @@ namespace Bolter.BolterAdminApp
             o.Add("serviceName", new JValue(serviceName));
             o.Add("autoStart", new JValue(autoStart));
             SendMessage(o.ToString());
-
         }
 
         public void RequestHideStartupsAppsFromSettings(bool hide)
@@ -219,6 +233,14 @@ namespace Bolter.BolterAdminApp
         {
             string json = "{name:UninstallService," + $" serviceExeName: {serviceExeName}, serviceName:{serviceName}" + "}";
             SendMessage(json);
+        }
+
+        public void Dispose()
+        {
+            if(client != null)
+            {
+                client.Close();
+            }
         }
 
         private class StringArg : EventArgs

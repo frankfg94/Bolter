@@ -117,6 +117,24 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="client_quit" xml:space="preserve">
+    <value>Client quit. Server terminating.</value>
+  </data>
+  <data name="connected" xml:space="preserve">
+    <value>Connected!</value>
+  </data>
+  <data name="connecting" xml:space="preserve">
+    <value>Connecting...</value>
+  </data>
+  <data name="json_not_string" xml:space="preserve">
+    <value>JSON is invalid, parsed content is not a string</value>
+  </data>
+  <data name="json_no_name" xml:space="preserve">
+    <value>JSON is invalid, it doesn't have a name attribute</value>
+  </data>
+  <data name="named_pipes_name" xml:space="preserve">
+    <value>PipeOfPieces</value>
+  </data>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
   <data name="ntrights" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\ntrights.exe;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>

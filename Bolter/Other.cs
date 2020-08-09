@@ -6,8 +6,10 @@ using System.Timers;
 
 namespace Bolter
 {
-    public class Other
+    public static class Other
     {
+        private const string Value = "----------------// BOLTER WARNING //-------------------";
+        private const string Line = "-------------------------------------------------------";
         /// <summary>
         /// This function tries to connect to a google address that needs internet connection, 
         /// if that fails, then the value false will be returned
@@ -33,9 +35,9 @@ namespace Bolter
         {
             var oldColor = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("----------------// BOLTER WARNING //-------------------");
+            Console.WriteLine(Value);
             Console.WriteLine(message);
-            Console.WriteLine("-------------------------------------------------------");
+            Console.WriteLine(Line);
             Console.ResetColor();
         }
 

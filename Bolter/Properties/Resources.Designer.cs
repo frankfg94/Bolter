@@ -61,6 +61,60 @@ namespace Bolter.Properties {
         }
         
         /// <summary>
+        ///   Recherche une chaîne localisée semblable à Client quit. Server terminating..
+        /// </summary>
+        internal static string client_quit {
+            get {
+                return ResourceManager.GetString("client_quit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à Connected!.
+        /// </summary>
+        internal static string connected {
+            get {
+                return ResourceManager.GetString("connected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à Connecting....
+        /// </summary>
+        internal static string connecting {
+            get {
+                return ResourceManager.GetString("connecting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à JSON is invalid, it doesn&apos;t have a name attribute.
+        /// </summary>
+        internal static string json_no_name {
+            get {
+                return ResourceManager.GetString("json_no_name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à JSON is invalid, parsed content is not a string.
+        /// </summary>
+        internal static string json_not_string {
+            get {
+                return ResourceManager.GetString("json_not_string", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une chaîne localisée semblable à PipeOfPieces.
+        /// </summary>
+        internal static string named_pipes_name {
+            get {
+                return ResourceManager.GetString("named_pipes_name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Recherche une ressource localisée de type System.Byte[].
         /// </summary>
         internal static byte[] ntrights {

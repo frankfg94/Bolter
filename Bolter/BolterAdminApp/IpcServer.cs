@@ -1,22 +1,21 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
-using System.Text;
-using System.Threading;
 
 namespace Bolter.BolterAdminApp
 {
     // TODO : create a controller like implementation
-    public class IpcServer
+    public class PipeServer : IDisposable
     {
-            private string appUsingBolterPath;
-            private NamedPipeServerStream server;
+        private NamedPipeServerStream server;
 
-
+        /// <summary>
+        /// Takes a json as an input & tries to execute an Admin command with it
+        /// </summary>
+        /// <param name="jsonStr"></param>
         public void ExecuteUACCommand(string jsonStr)
         {
             // SendToClient("Server : received command");
@@ -25,18 +24,24 @@ namespace Bolter.BolterAdminApp
             try
             {
                 jsonObj = JObject.Parse(jsonStr);
+                var s2 = (string)jsonObj.name;
+                if(s2 == null)
+                {
+                        SendToClient(Properties.Resources.json_no_name);
+                        return;
+                };
             }
             catch (JsonReaderException)
             {
                 SendToClient($"Could not parse command, This string isn't a json object : {jsonStr}");
                 return;
             }
-            // Doesn't work
-            if(Object.ReferenceEquals(null, jsonObj.name))
+            catch(InvalidCastException)
             {
-                SendToClient("JSON is invalid, it doesn't have a name attribute");
+                SendToClient(Properties.Resources.json_not_string);
                 return;
             }
+            // Doesn't work
             switch ((string)jsonObj.name)
             {
                 case "Hello":
@@ -125,11 +130,14 @@ namespace Bolter.BolterAdminApp
                 Console.WriteLine("[Service/Admin app] Error: {0}", e.Message);
             }
         }
-
+                                                                                                                                                                                            
+        /// <summary>
+        /// Start the server, it must be started just befoe the client
+        /// </summary>
         public void Start()
         {
             Console.WriteLine("Starting mock service, waiting for clients...");
-            using (server = new NamedPipeServerStream("PipesOfPiece"))
+            using (server = new NamedPipeServerStream(Properties.Resources.named_pipes_name,PipeDirection.InOut,2))
             {
 
                 server.WaitForConnection();
@@ -147,9 +155,9 @@ namespace Bolter.BolterAdminApp
                             var serverMsg = reader.ReadLine();
                             Trace.WriteLine("received client command");
                             File.AppendAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\log.txt", "Received command : " + serverMsg + " " + DateTime.Now + Environment.NewLine);
-                            if (serverMsg.Contains("unblock"))
+                            if (serverMsg.Contains("unblock",StringComparison.OrdinalIgnoreCase))
                             {
-                                Admin.DisableAllPossibleRestrictions(appUsingBolterPath);
+                                Admin.DisableAllPossibleRestrictions("");
                                 Trace.WriteLine("Unblocked everything successfully");
                             }
                             else
@@ -179,6 +187,16 @@ namespace Bolter.BolterAdminApp
                 }
             }
 
+        }
+
+        public void Dispose()
+        {
+            if(server != null)
+            {
+                server.Disconnect();
+                server.Dispose();
+            }
+            
         }
     }
 }
