@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Win32.Registry" Version="4.7.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="4.7.0" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.7.0" />
     <PackageReference Include="VirtualDesktop" Version="4.0.1" />
@@ -40,9 +41,5 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
-
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command=":: Commented bc buggy&#xD;&#xA;:: echo &quot;copying $(OutDir)Bolter.dll to current Resources folder $(SolutionDir)\Resources&quot;&#xD;&#xA;:: copy &quot;$(OutDir)Bolter.dll&quot; &quot;$(SolutionDir)Bolter\Resources&quot;" />
-  </Target>
 
 </Project>

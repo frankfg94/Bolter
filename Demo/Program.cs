@@ -12,40 +12,64 @@ namespace Demo
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("This is the demo (console version)");
+            Console.WriteLine("This is the demo client (console version)");
             // folderLockTest();
             // Admin.SetStartupSafeMode(false);
-            IpcAdminServiceTest();
+            IpcAdminServiceTest(false);
             // IPCTest();
             new ManualResetEvent(false).WaitOne();
         }
 
-        static void IpcAdminServiceTest()
+        static void IpcAdminServiceTest(bool install)
         {
+            if(install)
             Admin.InstallService();
-            var server = new IpcServer();
-            server.ConnectToAdminBolterService(30 * 1000); // We give 30 seconds for the service to load
-            server.StartListeningToClient();
-            server.SendToClient("Hello");
+            var client = new IpcClient();
+            client.ConnectToAdminBolterService(4  * 1000); // We give 30 seconds for the service to load
+            client.SendMessage("First_msg");
+            client.SendMessage("2nd_msg");
+            client.SendMessage("last msg");
+            client.SendMessage("2nd_msg_2");
+            client.RequestSetBatchAndCMDBlock(false);
+
+            //client.WaitAndPrintResponse();
+            // client.SendToService("{ \"name\":\"SetBatchAndCMDBlock\",\"block\":false}");
+            ///client.SendToService("Last msg");
+            // client.RequestSetBatchAndCMDBlock(false);
+            // client.RequestSetBatchAndCMDBlock(true);
 
             // Auto free
             var timer = new System.Timers.Timer(10000);
-            timer.Elapsed += (s, e) => server.StopServer();
+            timer.Elapsed += (s, e) =>
+            {
+                client.RequestSetBatchAndCMDBlock(false);
+                // Reconnect test
+                client.Stop();
+                client = new IpcClient();
+                client.ConnectToAdminBolterService(4 * 1000);
+                client.SendMessage("Hello");
+                Thread.Sleep(3000);
+                client.SendMessage("Hello2");
+                if (install)
+                    Admin.UninstallService();
+            };
             timer.AutoReset = false;
             timer.Start();
         }
-        static void  IPCTest()
+
+
+        static void  IPCAdminBridgeTest()
         {
-            var server =  new IpcServer();
+            var server =  new IpcClient();
             // TODO relative paths
             var bridgePath = @"C:\Users\franc\source\repos\Bolter\BridgeProcess\bin\Debug\netcoreapp3.1\BridgeProcess.exe";
             var adminAppPath = @"C:\Users\franc\source\repos\Bolter\Bolter\Resources\BolterAdminApp.exe";
             server.ConnectToClient(adminAppPath,bridgePath);
             Console.WriteLine("Connected");
-            server.SendToClient("unblock");
-            server.SendToClient("ooo");
+            server.SendMessage("unblock");
+            server.SendMessage("ooo");
             Thread.Sleep(2000);
-            server.StopServer();
+            server.Stop();
         }
 
         static void folderLockTest()

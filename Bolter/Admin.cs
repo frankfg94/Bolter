@@ -48,7 +48,6 @@ namespace Bolter
 
         /// <summary>
         /// Block / Unblock both the batch (.bat) files and the CMD console. It doesn't require a restart from the computer and works immediatly
-        /// Permet de bloquer à la fois les scripts Batch et la console CMD, nécéssite un appel administrateur
         /// </summary>
         ///  <remarks>	<i>This requires the app to be in administrator mode </i></remarks>
         /// <param name="block"></param>
@@ -167,7 +166,9 @@ namespace Bolter
         }
         /// <summary>
         /// Install a service automatically from the folder AdminBolterService as LocalSystem (highest possible privileges)
+        /// At the moment, it checks the service in the publish folder of the project, it must be fixed for production usage
         /// </summary>
+        ///  <remarks>	<i>This requires the app to be in administrator mode </i></remarks>
         /// <param name="serviceExeName">Name of the executable without the exe</param>
         public static void InstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service", bool autoStart = true)
         {

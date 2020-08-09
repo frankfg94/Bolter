@@ -1,6 +1,7 @@
 using Bolter;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -28,13 +29,14 @@ namespace AdminBolterService
         public Worker(ILogger<Worker> logger)
         {
             _logger = logger;
-            //System.Diagnostics.Debugger.Launch();
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             Trace.WriteLine("Entering start client");
-            StartClient();
+
+            StartServerIpc();
+
             /*
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -43,39 +45,85 @@ namespace AdminBolterService
             }
             */
         }
-
-        private static void EnableUacSecurity(string commandName)
+        private static dynamic Conv(dynamic source, Type dest)
         {
-            Trace.WriteLine("Entered " + commandName);
-            switch (commandName)
+            return Convert.ChangeType(source, dest);
+        }
+        private static void ExecuteUACCommand(string jsonStr)
+        {
+            string errMsg = "error";
+            SendToServer("Server : received command");
+
+            dynamic jsonObj = JObject.Parse(jsonStr);
+            if (jsonObj == null || !jsonObj.name)
+            {
+                errMsg += "Dynamic json is null";
+                throw new NullReferenceException(errMsg);
+            };
+            switch (jsonObj.name)
             {
                 case "Hello":
                     SendToServer("Hello i'm the service and it's working!");
                     break;
-                case "InstallNtRights":
+                case "InstallNtRights": // OK
                     Admin.InstallNtRights();
                     break;
                 case "SetBatchAndCMDBlock":
-                    Admin.SetBatchAndCMDBlock(true);
+                    Admin.SetBatchAndCMDBlock(Conv(jsonObj.block, typeof(bool)));
                     break;
                 case "PreventDateEditingW10":
-                    Admin.PreventDateEditingW10(true);
+                    Admin.PreventDateEditingW10(Conv(jsonObj.block, typeof(bool)));
                     break;
                 case "SetStartupSafeMode":
-                    Admin.SetStartupSafeMode(true);
+                    Admin.SetStartupSafeMode(
+                        autoStartEnabled: Conv(jsonObj.block, typeof(bool)),
+                        applicationFullPath: Conv(jsonObj.applicationFullPath, typeof(string)));
+                    break;
+                case "InstallService":
+                    Admin.InstallService(
+                            serviceExeName: Conv(jsonObj.serviceExeName, typeof(string)),
+                            serviceName: Conv(jsonObj.serviceName, typeof(string)));
+                    break;
+                case "UninstallService":
+                    Admin.UninstallService(
+                        serviceExeName: Conv(jsonObj.serviceExeName, typeof(string)),
+                        serviceName: Conv(jsonObj.serviceName, typeof(string)));
+                    break;
+                case "HideStartupsAppsFromSettings":
+                    Admin.HideStartupsAppsFromSettings(
+                       hide: Conv(jsonObj.hide, typeof(bool))
+                        );
+                    break;
+                case "DisableAllAdminRestrictions":
+                    if (jsonObj.foldersPathToUnlock)
+                    {
+                        Admin.DisableAllAdminRestrictions(
+                            appPath: Conv(jsonObj.appPath, typeof(string)),
+                            foldersPathToUnlock: Conv(jsonObj.foldersPathToUnlock, typeof(string[]))
+                            );
+                    }
+                    else
+                    {
+                        Admin.DisableAllAdminRestrictions(appPath: Conv(jsonObj.appPath, typeof(string)));
+                    }
+                    break;
+                case "DisableAllPossibleRestrictions":
+                    Admin.HideStartupsAppsFromSettings(
+                        hide: Conv(jsonObj.hide, typeof(bool))
+                        );
                     break;
                 case "SetWebsiteBlocked":
                     Console.WriteLine("SetWebsiteBlocked is not supported yet, because we need to pass each website address");
                     break;
                 default:
-                    Other.Warn("Unknown command : " + commandName);
+                    Other.Warn("Unknown command : " + jsonObj);
                     break;
             }
         }
 
         private static void SendToServer(string message)
         {
-            Console.WriteLine("Sending message : " + message);
+            Console.WriteLine("[Service/Admin app]Sending message : " + message);
             try
             {
                 var serveWriter = new StreamWriter(client);
@@ -91,21 +139,24 @@ namespace AdminBolterService
             }
         }
 
-        private static void StartClient()
+        private static void StartServerIpc()
         {
-            Console.WriteLine("Starting client...");
+            Console.WriteLine("Starting service server ipc...");
             client = new NamedPipeClientStream("PipesOfPiece");
             client.Connect();
             Console.WriteLine("Connected :0");
 
-                StreamReader reader = new StreamReader(client);
-                while (true)
+            StreamReader reader = new StreamReader(client);
+            while (client.IsConnected)
+            {
+                try
                 {
                     if (!reader.EndOfStream)
                     {
                         var serverMsg = reader.ReadLine();
                         File.AppendAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\log.txt", "Received command : " + serverMsg);
                         Trace.WriteLine("received: " + serverMsg);
+                        SendToServer("Okay received message");
                         if (serverMsg.Contains("unblock"))
                         {
                             Admin.DisableAllPossibleRestrictions(appUsingBolterPath);
@@ -113,10 +164,18 @@ namespace AdminBolterService
                         }
                         else
                         {
-                            EnableUacSecurity(serverMsg);
+                            ExecuteUACCommand(serverMsg);
                         }
                     }
                 }
+
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    SendToServer(Environment.NewLine + e.Message + Environment.NewLine + e.StackTrace);
+                }
+            }
+            StartServerIpc();
         }
     }
 }

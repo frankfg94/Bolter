@@ -18,9 +18,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BolterRespawner", "BolterRe
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BridgeProcess", "BridgeProcess\BridgeProcess.csproj", "{73090E42-8DDF-47A8-AD63-004736D5BBD8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdminBolterService", "AdminBolterService\AdminBolterService.csproj", "{196DC127-5BB6-4648-8D5C-41913F229081}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AdminBolterService", "AdminBolterService\AdminBolterService.csproj", "{196DC127-5BB6-4648-8D5C-41913F229081}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BolterAdminApp", "BolterAdminApp\BolterAdminApp.csproj", "{39B1350A-836D-4B28-A43F-C27C53CF7360}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MockService", "MockService\MockService.csproj", "{C3668887-855A-4E5A-803D-F5D8906EA27F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -56,6 +58,10 @@ Global
 		{39B1350A-836D-4B28-A43F-C27C53CF7360}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{39B1350A-836D-4B28-A43F-C27C53CF7360}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{39B1350A-836D-4B28-A43F-C27C53CF7360}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3668887-855A-4E5A-803D-F5D8906EA27F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3668887-855A-4E5A-803D-F5D8906EA27F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3668887-855A-4E5A-803D-F5D8906EA27F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3668887-855A-4E5A-803D-F5D8906EA27F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
