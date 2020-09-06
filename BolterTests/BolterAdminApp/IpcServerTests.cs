@@ -13,7 +13,6 @@ namespace Bolter.BolterAdminApp.Tests
         PipeClient client;
         PipeServer server;
 
-
         /// <summary>
         /// This methods tests the connection between the client & the server, if the server is started first
         /// </summary>

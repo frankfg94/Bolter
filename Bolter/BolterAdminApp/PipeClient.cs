@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Bolter.BolterAdminApp
 {
     // At the moment IPC does work very well if the service was started a few minutes ago, but if we test it directly with install, it creates problems (not connected or pipebroken)
-    public class PipeClient : IPCAdminInterface, IDisposable
+    public class PipeClient : PipeAdminInterface, IDisposable
     {
         public static string message = null;
         Process bridge = null;

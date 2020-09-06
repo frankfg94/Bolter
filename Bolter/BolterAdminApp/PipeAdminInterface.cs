@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Bolter
 {
-    interface IPCAdminInterface
+    interface PipeAdminInterface
     {
         void RequestInstallNtRights();
         void RequestSetBatchAndCMDBlock(bool block);

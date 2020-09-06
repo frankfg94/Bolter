@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿using Bolter.Attributes;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -130,7 +131,7 @@ namespace Bolter
 
         }
 
-
+        [RequireAdministrator]
         public static void UninstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service")
         {
             System.Diagnostics.Process cmd = new System.Diagnostics.Process();
