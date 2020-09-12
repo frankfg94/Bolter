@@ -3,13 +3,15 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Bolter.BolterAdminApp
 {
     // At the moment IPC does work very well if the service was started a few minutes ago, but if we test it directly with install, it creates problems (not connected or pipebroken)
-    public class PipeClient : PipeAdminInterface, IDisposable
+    public class PipeClient : IAdminCommands, IDisposable
     {
         public static string message = null;
         Process bridge = null;
@@ -41,35 +43,40 @@ namespace Bolter.BolterAdminApp
             return client.IsConnected;
         }
 
+
+
+
         /// <summary>
-        /// Start the server that connects to the remote process or the remote service
+        /// Start the client that connects to the remote process or the remote service
+        /// The server must be up and running first
         /// </summary>
         private void Start()
         {
-                client = new NamedPipeClientStream(Properties.Resources.named_pipes_name);
-                Console.WriteLine(Properties.Resources.connecting);
-                client.Connect();
-                Console.WriteLine(Properties.Resources.connected);
-                StreamReader reader = new StreamReader(client);
-                StreamWriter writer = new StreamWriter(client);
-                this.RequestMessageSend += (s, arg) =>
+            client = new NamedPipeClientStream(".",Properties.Resources.named_pipes_name, PipeDirection.InOut);
+            Console.WriteLine(Properties.Resources.connecting);
+            client.Connect();
+            Console.WriteLine(Properties.Resources.connected);
+            StreamReader reader = new StreamReader(client);
+            StreamWriter writer = new StreamWriter(client);
+            this.RequestMessageSend += (s, arg) =>
+            {
+                ConsoleClientWrite("Sending message : " + arg.message + "... ");
+                try
                 {
-                    ConsoleClientWrite("Sending message : " + arg.message + "... ");
-                    try
-                    {
-                        writer.WriteLine(arg.message);
-                        writer.Flush();
-                        Console.Write("OK\n");
-                        ConsoleServerWriteLine(reader.ReadLine());
+                    writer.WriteLine(arg.message);
+                    writer.Flush();
+                    Console.Write("OK\n");
+                    ConsoleServerWriteLine(reader.ReadLine());
                         // serveWriter.Flush();
                     }
                     // Catch the IOException that is raised if the pipe is broken
                     // or disconnected.
                     catch (IOException e)
-                    {
-                        ConsoleClientWrite($"Error: {e.Message}");
-                    }
-                };
+                {
+                    ConsoleClientWrite($"Error: {e.Message}");
+                }
+            };
+            //SetAuth(client);
         }
 
         public void SendMessage(string msg)
@@ -99,16 +106,17 @@ namespace Bolter.BolterAdminApp
 
         public void ConnectToAdminBolterService(int delayMs)
         {
+            Console.WriteLine("[?] Connecting to the remote bolter service");
             Start();
             Task.Delay(delayMs).Wait();
         }
 
-        // A bridge process is required to make ipc work with uac ....
+        // A bridge process is required to make ipc work with uac .... ( 3 processes : process executing the command - uac bridge process - uac process)
         public void ConnectToBridge(string ipcClientExePath, string bridgeExePath, string thisAppExePath)
         {
 
             bridge = new Process();
-            if(thisAppExePath != null && bridgeExePath != null && ipcClientExePath != null)
+            if (thisAppExePath != null && bridgeExePath != null && ipcClientExePath != null)
             {
                 if (thisAppExePath.EndsWith(".dll", StringComparison.Ordinal))
                 {
@@ -120,8 +128,6 @@ namespace Bolter.BolterAdminApp
                 // Pass the client process a handle to the server.
                 bridge.StartInfo.ArgumentList.Add("uac:" + ipcClientExePath);
                 bridge.StartInfo.ArgumentList.Add("p:" + thisAppExePath);
-
-
                 bridge.StartInfo.UseShellExecute = true; // required for uac prompt
                 bridge.StartInfo.Verb = "runas"; // will throw win32 exception if the process is not administrator
                 bridge.OutputDataReceived += PipeClient_OutputDataReceived;
@@ -170,7 +176,7 @@ namespace Bolter.BolterAdminApp
         public void RequestSetBatchAndCMDBlock(bool block)
         {
             JObject o = new JObject();
-            o.Add("name",new JValue("SetBatchAndCMDBlock"));
+            o.Add("name", new JValue("SetBatchAndCMDBlock"));
             o.Add("block", new JValue(block));
             SendMessage(o.ToString(Newtonsoft.Json.Formatting.None));
         }
@@ -207,7 +213,7 @@ namespace Bolter.BolterAdminApp
 
         public void RequestDisableAllAdminRestrictions(string appPath, string[] foldersPathToUnlock)
         {
-            string json = "{name:DisableAllAdminRestrictions, appPath:" + $"{appPath}, foldersPathToUnlock:{foldersPathToUnlock}"+  "}";
+            string json = "{name:DisableAllAdminRestrictions, appPath:" + $"{appPath}, foldersPathToUnlock:{foldersPathToUnlock}" + "}";
             SendMessage(json);
         }
 
@@ -219,7 +225,7 @@ namespace Bolter.BolterAdminApp
 
         public void RequestSetWebsiteBlocked(bool block, string domain)
         {
-            string json = "{name:SetWebsiteBlocked,"+ $"block:{block}, domain:{domain}"+"}";
+            string json = "{name:SetWebsiteBlocked," + $"block:{block}, domain:{domain}" + "}";
             SendMessage(json);
         }
 
@@ -237,11 +243,12 @@ namespace Bolter.BolterAdminApp
 
         public void Dispose()
         {
-            if(client != null)
+            if (client != null)
             {
                 client.Close();
             }
         }
+
 
         private class StringArg : EventArgs
         {

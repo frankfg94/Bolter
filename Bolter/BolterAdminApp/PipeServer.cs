@@ -25,10 +25,10 @@ namespace Bolter.BolterAdminApp
             {
                 jsonObj = JObject.Parse(jsonStr);
                 var s2 = (string)jsonObj.name;
-                if(s2 == null)
+                if (s2 == null)
                 {
-                        SendToClient(Properties.Resources.json_no_name);
-                        return;
+                    SendToClient(Properties.Resources.json_no_name);
+                    return;
                 };
             }
             catch (JsonReaderException)
@@ -36,7 +36,7 @@ namespace Bolter.BolterAdminApp
                 SendToClient($"Could not parse command, This string isn't a json object : {jsonStr}");
                 return;
             }
-            catch(InvalidCastException)
+            catch (InvalidCastException)
             {
                 SendToClient(Properties.Resources.json_not_string);
                 return;
@@ -59,7 +59,7 @@ namespace Bolter.BolterAdminApp
                 case "SetStartupSafeMode":
                     Admin.SetStartupSafeMode(
                         autoStartEnabled: (bool)jsonObj.block,
-                        applicationFullPath: (string) jsonObj.applicationFullPath);
+                        applicationFullPath: (string)jsonObj.applicationFullPath);
                     break;
                 case "InstallService":
                     Admin.InstallService(
@@ -103,7 +103,7 @@ namespace Bolter.BolterAdminApp
                     SendToClient("Unknown command : " + JObject.Parse(jsonStr).ToString(Formatting.None));
                     break;
             }
-            if(commandFound)
+            if (commandFound)
             {
                 SendToClient(">> Admin command executed : " + (string)jsonObj.name);
             }
@@ -114,12 +114,12 @@ namespace Bolter.BolterAdminApp
             Console.Write($"[Service/Admin app]Sending message ( {message} ) ");
             try
             {
-                    server.WaitForPipeDrain();
-                    var serveWriter = new StreamWriter(server);
-                    serveWriter.AutoFlush = true;
-                    serveWriter.WriteLine(message);
-                    Console.Write(" OK\n");
-                    server.WaitForPipeDrain();
+                server.WaitForPipeDrain();
+                var serveWriter = new StreamWriter(server);
+                serveWriter.AutoFlush = true;
+                serveWriter.WriteLine(message);
+                Console.Write(" OK\n");
+                server.WaitForPipeDrain();
 
                 // serveWriter.Flush();
             }
@@ -130,14 +130,14 @@ namespace Bolter.BolterAdminApp
                 Console.WriteLine("[Service/Admin app] Error: {0}", e.Message);
             }
         }
-                                                                                                                                                                                            
+
         /// <summary>
         /// Start the server, it must be started just befoe the client
         /// </summary>
         public void Start()
         {
             Console.WriteLine("Starting mock service, waiting for clients...");
-            using (server = new NamedPipeServerStream(Properties.Resources.named_pipes_name,PipeDirection.InOut,2))
+            using (server = new NamedPipeServerStream(Properties.Resources.named_pipes_name, PipeDirection.InOut, 2))
             {
 
                 server.WaitForConnection();
@@ -155,7 +155,7 @@ namespace Bolter.BolterAdminApp
                             var serverMsg = reader.ReadLine();
                             Trace.WriteLine("received client command");
                             File.AppendAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\log.txt", "Received command : " + serverMsg + " " + DateTime.Now + Environment.NewLine);
-                            if (serverMsg.Contains("unblock",StringComparison.OrdinalIgnoreCase))
+                            if (serverMsg.Contains("unblock", StringComparison.OrdinalIgnoreCase))
                             {
                                 Admin.DisableAllPossibleRestrictions("");
                                 Trace.WriteLine("Unblocked everything successfully");
@@ -191,12 +191,12 @@ namespace Bolter.BolterAdminApp
 
         public void Dispose()
         {
-            if(server != null)
+            if (server != null)
             {
                 server.Disconnect();
                 server.Dispose();
             }
-            
+
         }
     }
 }

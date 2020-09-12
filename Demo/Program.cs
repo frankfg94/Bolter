@@ -1,6 +1,7 @@
 ﻿using Bolter;
 using Bolter.BolterAdminApp;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,12 +16,34 @@ namespace Demo
             Console.WriteLine("This is the demo client (console version)");
             // folderLockTest();
             // Admin.SetStartupSafeMode(false);
-            IpcAdminServiceTest(false);
-            // IPCTest();
+            // RealServiceTest(false);
+            // IPCAdminBridgeTest();
+            TcpAdminBridgeTest();
             new ManualResetEvent(false).WaitOne();
         }
 
-        static void IpcAdminServiceTest(bool install)
+        private static void TcpAdminBridgeTest()
+        {
+            string IP_SERVER_ADDRESS = "127.0.0.1";
+            int PORT = 8976;
+            var tcpClient = new ReceiverClient();
+            // TODO relative paths
+            var bridgePath = @"C:\Users\franc\source\repos\Bolter\BridgeProcess\bin\Debug\netcoreapp3.1\BridgeProcess.exe";
+            var mockServiceApp = @"C:\Users\franc\source\repos\Bolter\MockService\bin\Debug\netcoreapp3.1\MockService.exe";
+            tcpClient.ConnectToBridge(mockServiceApp, bridgePath);
+            tcpClient.JoinServerConsole(IP_SERVER_ADDRESS, PORT);
+
+            // Info commands
+            tcpClient.SendMessage("unblocksqdsqd");
+            tcpClient.SendMessage("ooo");
+            tcpClient.RequestInstallService();
+            Console.ReadLine();
+            Bolter.NonAdmin.DisableAllNonAdminRestrictions();
+            tcpClient.RequestDisableAllAdminRestrictions(AppDomain.CurrentDomain.BaseDirectory);
+
+        }
+
+        static void RealServiceTest(bool install)
         {
             if(install)
             Admin.InstallService();

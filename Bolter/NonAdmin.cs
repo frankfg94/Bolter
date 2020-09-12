@@ -458,7 +458,7 @@ namespace Bolter
         /// </summary>
         /// <param name="enabled"></param>
         /// <param name="lockDelayMilliseconds">In milliseconds</param>
-        public static void SetFolderAutoLocker(bool enabled, int lockDelayMilliseconds = 5000)
+        public static void SetFolderAutoLocker(bool enabled, int lockDelayMilliseconds = 5000, bool isSilent = false)
         {
             // Creating & init
             if (folderLockTimer == null)
@@ -471,7 +471,7 @@ namespace Bolter
                     {
                         if (folder.startDate.Ticks < now && now < folder.endDate.Ticks)
                         {
-                            LockFolder(folder.path, false);
+                            LockFolder(folder.path, isSilent);
                             HideAndProtectFolder(folder.path, true);
                         }
                         else
@@ -585,7 +585,7 @@ namespace Bolter
                 Console.WriteLine("Unlocked " + NonAdmin.foldersToLock.Count + " folders");
                 if(disableAutoLocker)
                 {
-                    SetFolderAutoLocker(false);
+                    SetFolderAutoLocker(false,5000,false);
                 }
             }
             else
@@ -750,7 +750,8 @@ namespace Bolter
             }
             catch (Exception e)
             {
-                Console.WriteLine("Lock failed : " + e.Message);
+                if (!silent)
+                    Console.WriteLine("Lock failed : " + e.Message);
             }
         }
 
@@ -804,7 +805,7 @@ namespace Bolter
             // Start the auto locker
             if (autoStartAutoLocker && (folderLockTimer == null || !folderLockTimer.Enabled))
             {
-                SetFolderAutoLocker(true, autoLockDelayMilliseconds);
+                SetFolderAutoLocker(true, autoLockDelayMilliseconds,true);
             }
         }
 
@@ -1291,7 +1292,7 @@ namespace Bolter
             }
             else
             {
-                Console.WriteLine("Respawner must before closing it first");
+                Console.WriteLine("Respawner must be opened before closing it first --> No need to close the respawner");
             }
             // throw new NotImplementedException("TODO : Create project BolterWatcher");
         }

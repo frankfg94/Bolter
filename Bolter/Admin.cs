@@ -165,6 +165,8 @@ namespace Bolter
             cmd.WaitForExit();
 
         }
+
+
         /// <summary>
         /// Install a service automatically from the folder AdminBolterService as LocalSystem (highest possible privileges)
         /// At the moment, it checks the service in the publish folder of the project, it must be fixed for production usage

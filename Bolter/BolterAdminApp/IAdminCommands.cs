@@ -2,9 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Bolter
+namespace Bolter.BolterAdminApp
 {
-    interface PipeAdminInterface
+    /// <summary>
+    /// Disable all possible restrictions is not present because all non admin features can be disabled on the client side, also the variables must be cleared client side
+    /// </summary>
+    public interface IAdminCommands
     {
         void RequestInstallNtRights();
         void RequestSetBatchAndCMDBlock(bool block);
@@ -14,7 +17,6 @@ namespace Bolter
         void RequestHideStartupsAppsFromSettings(bool hide);
         void RequestDisableAllAdminRestrictions(string appPath);
         void RequestDisableAllAdminRestrictions(string appPath, string[] foldersPathToUnlock);
-        void RequestDisableAllPossibleRestrictions(string appPath);
         void RequestSetWebsiteBlocked(bool block, string domain);
         void RequestSetStartupSafeMode(bool autoStartEnabled, string applicationFullPath = "useThisApp");
     }
