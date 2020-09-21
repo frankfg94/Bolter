@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Matrix\Matrix\Matrix.csproj" />
     <ProjectReference Include="..\Bolter\Bolter.csproj" />
   </ItemGroup>
 

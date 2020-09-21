@@ -1,19 +1,38 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Win32.SafeHandles;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using System.Security.Permissions;
 using System.Text;
 
 namespace Bolter.BolterAdminApp
 {
-
-        public class ReceiverServer
+    /// <summary>
+    /// Required for impersonation
+    /// </summary>
+    [PermissionSetAttribute(SecurityAction.Demand, Name = "FullTrust")]
+    public class ReceiverServer
         {
-            private TcpClient comm;
 
-            public ReceiverServer(TcpClient comm)
+
+            private TcpClient comm;
+            const int LOGON32_PROVIDER_DEFAULT = 0;
+            //This parameter causes LogonUser to create a primary token.
+            const int LOGON32_LOGON_BATCH = 4;
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern bool LogonUser(
+        string lpszUsername,
+        string lpszDomain,
+        string lpszPassword,
+        int dwLogonType,
+        int dwLogonProvider,
+        out Microsoft.Win32.SafeHandles.SafeAccessTokenHandle handle);
+
+        public ReceiverServer(TcpClient comm)
             {
                 this.comm = comm;
             }
@@ -42,10 +61,12 @@ namespace Bolter.BolterAdminApp
                         }
                         else
                         {
+
                             string data = Net.RcvMsg(comm.GetStream());
                             if (data is string msg)
                             {
-                                Console.WriteLine("Signal received : " + msg);
+                            //System.Diagnostics.Debugger.Launch();
+                            Console.WriteLine("Signal received : " + msg);
                             Net.SendMsg(comm.GetStream(), "Received message : " + msg);
                             doOperationsAsUser(msg, comm);
                             }
@@ -59,6 +80,7 @@ namespace Bolter.BolterAdminApp
                             Console.WriteLine("Invalid command format " + ex);
                             Console.WriteLine(ex.StackTrace);
                             Net.SendMsg(comm.GetStream(), "[SERVER] Invalid command format " + ex.Message);
+                            Net.SendMsg(comm.GetStream(), "[SERVER] Invalid command format " + ex.StackTrace);
                             Console.WriteLine("--> Sent an invalid command format message to the client");
                         }
                     }
@@ -106,18 +128,43 @@ namespace Bolter.BolterAdminApp
                 case "Hello":
                     Net.SendMsg(comm.GetStream(),"Hello i'm the service and it's working!");
                     break;
+                case "RequestImpersonation":
+                    // SADLY, could not find a way to keep the privileges and be able to write to the registry. So this was the purpose of impersonation, to detect hkey current user & write disableCMD (that requires Elevated access)
+                    // At the moment, we ask directly with UAC
+                    var username = (string)jsonObj.username;
+                    var domain = (string)jsonObj.domain;
+                    var password = (string)jsonObj.password;
+                    var logonType = (int)jsonObj.logonType;
+                    bool result = LogonUser(username, domain, password, logonType, LOGON32_PROVIDER_DEFAULT,out SafeAccessTokenHandle impersonationToken);
+                    if(result)
+                    {
+                        Admin.phToken = impersonationToken;
+                    } else
+                    {
+                        int ret = Marshal.GetLastWin32Error();
+                        throw new System.ComponentModel.Win32Exception(ret);
+                    }
+                    break;
                 case "InstallNtRights": // OK
                     Admin.InstallNtRights();
                     break;
                 case "SetBatchAndCMDBlock":
-                    Admin.SetBatchAndCMDBlock((bool)jsonObj.block);
+                    // throw new NotImplementedException("We cannot do it remotely because we can't impersonate the user with admin rights, you have to call Admin.SetBatchAndCMDBlock directly with UAC prompt");
+                    bool yes = (bool)jsonObj.block;
+                    string us = (string)jsonObj.username;
+                    Admin.SetBatchAndCMDBlock(yes, username: us);
+                    Net.SendMsg(comm.GetStream(), "CMD & Bash are now blocked");
                     break;
                 case "PreventDateEditingW10":
-                    Admin.PreventDateEditingW10((bool)jsonObj.block);
+                    Admin.PreventDateEditingW10(removePrivilege:(bool)jsonObj.removePrivilege);
+                    break;
+                case "SetTaskManagerActivation":
+                    Admin.SetTaskManagerActivation(
+                        isActivated: (bool)jsonObj.isActivated);
                     break;
                 case "SetStartupSafeMode":
                     Admin.SetStartupSafeMode(
-                        autoStartEnabled: (bool)jsonObj.block,
+                        autoStartEnabled: (bool)jsonObj.autoStartEnabled,
                         applicationFullPath: (string)jsonObj.applicationFullPath);
                     break;
                 case "InstallService":

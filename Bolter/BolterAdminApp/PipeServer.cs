@@ -12,6 +12,7 @@ namespace Bolter.BolterAdminApp
     {
         private NamedPipeServerStream server;
 
+
         /// <summary>
         /// Takes a json as an input & tries to execute an Admin command with it
         /// </summary>
@@ -51,7 +52,7 @@ namespace Bolter.BolterAdminApp
                     Admin.InstallNtRights();
                     break;
                 case "SetBatchAndCMDBlock":
-                    Admin.SetBatchAndCMDBlock((bool)jsonObj.block);
+                    Admin.SetBatchAndCMDBlock((bool)jsonObj.block, "franc");
                     break;
                 case "PreventDateEditingW10":
                     Admin.PreventDateEditingW10((bool)jsonObj.block);
@@ -75,6 +76,10 @@ namespace Bolter.BolterAdminApp
                     Admin.HideStartupsAppsFromSettings(
                        hide: (bool)jsonObj.hide
                         );
+                    break;
+                case "SetTaskManagerActivation":
+                    Admin.SetTaskManagerActivation(
+                        isActivated: (bool)jsonObj.isActivated);
                     break;
                 case "DisableAllAdminRestrictions":
                     if (jsonObj.foldersPathToUnlock)

@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,18 +18,26 @@ namespace Bolter.BolterAdminApp
         Process bridge;
         TcpClient comm;
         Thread commandThread;
+        IntPtr userToken = IntPtr.Zero;
+
+        /// <summary>
+        /// TODO configure for waiting some messages
+        /// </summary>
         void ListenForClientCommands()
         {
+
+
+          
             while (true)
             {
-                keyboardCommand = Console.ReadLine();
+                // keyboardCommand = Console.ReadLine();
                 // We send data here
-                if (keyboardCommand != string.Empty)
-                {
+                //if (keyboardCommand != string.Empty)
+               // {
 
-                    var msg = keyboardCommand;
+               //     var msg = keyboardCommand;
 
-                    Net.SendMsg(comm.GetStream(), msg);
+               //     Net.SendMsg(comm.GetStream(), msg);
                     if (comm.GetStream().DataAvailable)
                     {
                         var responseMsg = Net.RcvMsg(comm.GetStream());
@@ -44,12 +53,15 @@ namespace Bolter.BolterAdminApp
                             }
                         }
                     }
-                }
+                Thread.Sleep(1000);
+               // }
             }
         }
 
+    
+
         string keyboardCommand = "";
-        public void JoinServerConsole(string IP_SERVER_ADDRESS, int PORT)
+        public void ConnectToBolterService(string IP_SERVER_ADDRESS, int PORT)
         {
             new Thread(() => {
             Console.WriteLine("[CLIENT] Creating TcpClient");
@@ -81,9 +93,9 @@ namespace Bolter.BolterAdminApp
             }).Start();
         }
 
-        public void ConnectToBridge(string ipcClientExePath, string bridgeExePath)
+        public void ConnectToBridge(string ipcClientExePath, string bridgeExePath, string[] commands)
         {
-            ConnectToBridge(ipcClientExePath, bridgeExePath, System.Reflection.Assembly.GetEntryAssembly().Location);
+            ConnectToBridge(ipcClientExePath, bridgeExePath, System.Reflection.Assembly.GetEntryAssembly().Location, commands);
         }
 
         public void SendMessage(string json)
@@ -94,6 +106,20 @@ namespace Bolter.BolterAdminApp
             }
             Console.WriteLine("Sending message : " + json);
             Net.SendMsg(comm.GetStream(), json);
+        }
+
+        public void RequestImpersonation(int logonType)
+        {
+            string userName = "franc"; 
+            string password = "mobius94";
+            string domain = Environment.UserDomainName;
+            JObject o = new JObject();
+            o.Add("name", new JValue("RequestImpersonation"));
+            o.Add("username", new JValue(userName));
+            o.Add("password", new JValue(password));
+            o.Add("domain", new JValue(domain));
+            o.Add("logonType", new JValue(logonType));
+            SendMessage(o.ToString());
         }
 
         public void RequestInstallNtRights()
@@ -108,6 +134,7 @@ namespace Bolter.BolterAdminApp
             JObject o = new JObject();
             o.Add("name", new JValue("SetBatchAndCMDBlock"));
             o.Add("block", new JValue(block));
+            o.Add("username", new JValue(Environment.UserName));
             SendMessage(o.ToString(Newtonsoft.Json.Formatting.None));
         }
 
@@ -115,7 +142,7 @@ namespace Bolter.BolterAdminApp
         {
             JObject o = new JObject();
             o.Add("name", new JValue("PreventDateEditingW10"));
-            o.Add("block", new JValue(removePrivilege));
+            o.Add("removePrivilege", new JValue(removePrivilege));
             SendMessage(o.ToString(Newtonsoft.Json.Formatting.None));
         }
 
@@ -126,6 +153,14 @@ namespace Bolter.BolterAdminApp
             o.Add("serviceExeName", new JValue(serviceExeName));
             o.Add("serviceName", new JValue(serviceName));
             o.Add("autoStart", new JValue(autoStart));
+            SendMessage(o.ToString());
+        }
+
+        public void RequestSetTaskManagerActivation(bool isActivated)
+        {
+            JObject o = new JObject();
+            o.Add("name", new JValue("SetTaskManagerActivation"));
+            o.Add("isActivated", new JValue(isActivated));
             SendMessage(o.ToString());
         }
 
@@ -163,7 +198,7 @@ namespace Bolter.BolterAdminApp
             SendMessage(o.ToString());
         }
 
-        public void RequestSetStartupSafeMode(bool autoStartEnabled, string applicationFullPath = "useThisApp")
+        public void RequestSetStartupSafeMode(bool autoStartEnabled, string applicationFullPath)
         {
             JObject o = new JObject();
             o.Add("name", new JValue("SetStartupSafeMode"));
@@ -182,11 +217,11 @@ namespace Bolter.BolterAdminApp
         }
 
         // A bridge process is required to make ipc work with uac .... ( 3 processes : process executing the command - uac bridge process - uac process)
-        public void ConnectToBridge(string ipcClientExePath, string bridgeExePath, string thisAppExePath)
+        public void ConnectToBridge(string commandExecutorExePath, string bridgeExePath, string thisAppExePath, string[] commands)
         {
 
             bridge = new Process();
-            if (thisAppExePath != null && bridgeExePath != null && ipcClientExePath != null)
+            if (thisAppExePath != null && bridgeExePath != null && commandExecutorExePath != null)
             {
                 if (thisAppExePath.EndsWith(".dll", StringComparison.Ordinal))
                 {
@@ -196,8 +231,12 @@ namespace Bolter.BolterAdminApp
 
 
                 // Pass the client process a handle to the server.
-                bridge.StartInfo.ArgumentList.Add("uac:" + ipcClientExePath);
+                bridge.StartInfo.ArgumentList.Add("uac:" + commandExecutorExePath);
                 bridge.StartInfo.ArgumentList.Add("p:" + thisAppExePath);
+                foreach (var c in commands)
+                {
+                    bridge.StartInfo.ArgumentList.Add(c);
+                }
                 bridge.StartInfo.UseShellExecute = true; // required for uac prompt
                 bridge.StartInfo.Verb = "runas"; // will throw win32 exception if the process is not administrator
                 bridge.OutputDataReceived += TcpClient_OutputDataReceived;
@@ -238,8 +277,10 @@ namespace Bolter.BolterAdminApp
                 switch (msg)
                 {
                     default:
-                        string err = "[SERVER] Response :" + msg;
-                        Console.WriteLine(err);
+                        Console.ForegroundColor = ConsoleColor.Green;
+                            Console.Write("\n[SERVER] ");
+                        Console.ResetColor();
+                        Console.Write(msg);
                         break;
                 }
             }

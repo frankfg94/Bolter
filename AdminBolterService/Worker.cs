@@ -1,11 +1,15 @@
 using Bolter;
+using Bolter.BolterAdminApp;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -31,12 +35,20 @@ namespace AdminBolterService
             _logger = logger;
         }
 
+        bool tcpEnabled = true;
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             Trace.WriteLine("Entering start client");
-
-            StartServerIpc();
-
+            if(tcpEnabled)
+            {
+                var server = new TcpServer();
+                server.Start(new IPAddress(new byte[] { 127, 0, 0, 1 }), 8976);
+            } 
+            else
+            {
+                StartServerIpc();
+            }
             /*
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -45,81 +57,17 @@ namespace AdminBolterService
             }
             */
         }
-        private static dynamic Conv(dynamic source, Type dest)
-        {
-            return Convert.ChangeType(source, dest);
-        }
-        private static void ExecuteUACCommand(string jsonStr)
-        {
-            string errMsg = "error";
-            SendToServer("Server : received command");
 
-            dynamic jsonObj = JObject.Parse(jsonStr);
-            if (jsonObj == null || !jsonObj.name)
-            {
-                errMsg += "Dynamic json is null";
-                throw new NullReferenceException(errMsg);
-            };
-            switch (jsonObj.name)
-            {
-                case "Hello":
-                    SendToServer("Hello i'm the service and it's working!");
-                    break;
-                case "InstallNtRights": // OK
-                    Admin.InstallNtRights();
-                    break;
-                case "SetBatchAndCMDBlock":
-                    Admin.SetBatchAndCMDBlock(Conv(jsonObj.block, typeof(bool)));
-                    break;
-                case "PreventDateEditingW10":
-                    Admin.PreventDateEditingW10(Conv(jsonObj.block, typeof(bool)));
-                    break;
-                case "SetStartupSafeMode":
-                    Admin.SetStartupSafeMode(
-                        autoStartEnabled: Conv(jsonObj.block, typeof(bool)),
-                        applicationFullPath: Conv(jsonObj.applicationFullPath, typeof(string)));
-                    break;
-                case "InstallService":
-                    Admin.InstallService(
-                            serviceExeName: Conv(jsonObj.serviceExeName, typeof(string)),
-                            serviceName: Conv(jsonObj.serviceName, typeof(string)));
-                    break;
-                case "UninstallService":
-                    Admin.UninstallService(
-                        serviceExeName: Conv(jsonObj.serviceExeName, typeof(string)),
-                        serviceName: Conv(jsonObj.serviceName, typeof(string)));
-                    break;
-                case "HideStartupsAppsFromSettings":
-                    Admin.HideStartupsAppsFromSettings(
-                       hide: Conv(jsonObj.hide, typeof(bool))
-                        );
-                    break;
-                case "DisableAllAdminRestrictions":
-                    if (jsonObj.foldersPathToUnlock)
-                    {
-                        Admin.DisableAllAdminRestrictions(
-                            appPath: Conv(jsonObj.appPath, typeof(string)),
-                            foldersPathToUnlock: Conv(jsonObj.foldersPathToUnlock, typeof(string[]))
-                            );
-                    }
-                    else
-                    {
-                        Admin.DisableAllAdminRestrictions(appPath: Conv(jsonObj.appPath, typeof(string)));
-                    }
-                    break;
-                case "DisableAllPossibleRestrictions":
-                    Admin.HideStartupsAppsFromSettings(
-                        hide: Conv(jsonObj.hide, typeof(bool))
-                        );
-                    break;
-                case "SetWebsiteBlocked":
-                    Console.WriteLine("SetWebsiteBlocked is not supported yet, because we need to pass each website address");
-                    break;
-                default:
-                    Other.Warn("Unknown command : " + jsonObj);
-                    break;
-            }
+
+        /// <summary>
+        /// NOT USED AT THE MOMENT, ONLY FOR NAMED PIPES, for tcp, just instanciate the server and run it
+        /// </summary>
+        /// <param name="jsonStr"></param>
+        private static void ExecuteUACCommandPipes(string jsonStr)
+        {
+          // TODO : complete
         }
+
 
         private static void SendToServer(string message)
         {
@@ -164,7 +112,7 @@ namespace AdminBolterService
                         }
                         else
                         {
-                            ExecuteUACCommand(serverMsg);
+                            ExecuteUACCommandPipes(serverMsg);
                         }
                     }
                 }

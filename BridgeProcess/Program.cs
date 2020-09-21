@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -22,6 +23,7 @@ namespace BridgeProcess
         {
             try
             {
+                List<string> commands = new List<string>();
                 Console.WriteLine("Bridge started!");
                 if (quickTest)
                 {
@@ -31,6 +33,11 @@ namespace BridgeProcess
                 }
                 foreach (var arg in args)
                 {
+                    if(uacAppPathFound && bolterAppPathFound)
+                    {
+                        commands.Add(arg);
+                    }
+
                     // Path of the administrator process, so that we can execute our commands directly in it
                     if (arg.StartsWith("uac:") && !uacAppPathFound)
                     {
@@ -56,7 +63,7 @@ namespace BridgeProcess
                 {
                     throw new ArgumentException("You need to provide one argument with the uac: prefix to indicate the uac path");
                 }
-                RunUacProcess(uacAppPath, pathAppThatUsesBolter);
+                RunUacProcess(uacAppPath, pathAppThatUsesBolter, commands.ToArray());
             }
             catch (Exception e)
             {
@@ -65,7 +72,7 @@ namespace BridgeProcess
             } 
         }
 
-        static void RunUacProcess(string uacProcessPath, string appThatUsesBolterPath)
+        static void RunUacProcess(string uacProcessPath, string appThatUsesBolterPath, string[] commands)
         {
             Process p = new Process();
             if (!File.Exists(uacProcessPath))
@@ -75,6 +82,10 @@ namespace BridgeProcess
             p.StartInfo.FileName = uacProcessPath;
             p.StartInfo.Verb = "runas";
             p.StartInfo.ArgumentList.Add("p:"+appThatUsesBolterPath);
+            foreach (var c in commands)
+            {
+                p.StartInfo.ArgumentList.Add(c);
+            }
             //  p.StartInfo.WorkingDirectory = Path.GetDirectoryName(uacProcessPath);
             // p.StartInfo.RedirectStandardOutput = true;
             // p.StartInfo.RedirectStandardError = true;

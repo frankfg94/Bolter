@@ -342,6 +342,7 @@ namespace Bolter
             }
         }
 
+
         /// <summary>
         /// Remove a folder eligible for automatic locking. The auto locker will be updated immediatly. Used automatically by the UnlockFolder method. The folder won't be unlocked but, the library won't try to lock it anymore.
         /// This is marked as internal because usage outside the library is not recommended, for clarity it is better to use the UnlockFolder directly.
@@ -521,14 +522,18 @@ namespace Bolter
                 Console.WriteLine("This can take some time...");
                 // First remove it from the autolock list if necessary
                 RemoveAutoLockFolder(folderPath);
-                SetFileStreamAntiDelete(folderPath, false);
+                // SetFileStreamAntiDelete(folderPath, false);
+                if(fileStreamsLockedPaths != null && fileStreamsLockedPaths.Contains(folderPath))
+                {
+                    fileStreamsLockedPaths.Remove(folderPath);
+                }
                 DirectoryInfo dInfo = new DirectoryInfo(folderPath);
                 DirectorySecurity dSecurity = dInfo.GetAccessControl();
                 string adminUserName = Environment.UserName;// getting your adminUserName
                 FileSystemAccessRule fsa2 = new FileSystemAccessRule(adminUserName, FileSystemRights.ListDirectory | FileSystemRights.Delete, AccessControlType.Deny);
                 dSecurity.RemoveAccessRule(fsa2);
                 dInfo.SetAccessControl(dSecurity);
-                SetFileStreamAntiDelete(folderPath, false);
+                // SetFileStreamAntiDelete(folderPath, false);
                 Console.WriteLine("Unlocked");
             }
             catch (Exception ex)
@@ -830,60 +835,7 @@ namespace Bolter
             return false;
         }
 
-        /// <summary>
-        /// Enable or disable the task manager, powerful because cannot be bypassed direclty by a system administrator. For security reasons, it will unlock after a certain amount of time.
-        /// </summary>
-        /// <param name="isActivated"></param>
-        /// <param name="customSecurityDuration">Maximum is 48 hours & minimum is 1 hour </param>
-        public static void SetTaskManagerActivation(bool isActivated, int customSecurityDuration = 48)
-        {
-            RegistryKey regkey;
-            string subKey = @"Software\Microsoft\Windows\CurrentVersion\Policies\System";
-            if (customSecurityDuration > 72)
-                customSecurityDuration = 72;
-            else if (customSecurityDuration <= 0)
-                customSecurityDuration = 1;
 
-            if (isActivated)
-            {
-                RegistryKey myKey = Registry.CurrentUser.OpenSubKey(subKey, false);
-                if (myKey.GetValue("DisableTaskMgr") != null)
-                {
-                    Console.WriteLine("Activating Task Manager");
-                    regkey = Registry.CurrentUser.CreateSubKey(subKey, true);
-                    regkey.DeleteValue("DisableTaskMgr", false);
-                    regkey.Close();
-                }
-            }
-            else if (!isActivated)
-            {
-                Console.WriteLine("Disabling Task Manager");
-                regkey = Registry.CurrentUser.CreateSubKey(subKey, true);
-                regkey.SetValue("DisableTaskMgr", 1);
-                regkey.Close();
-            }
-            else
-                Console.WriteLine("DisableTaskMgr not found error");
-
-
-            if (!isActivated)
-                EnableTaskManagerSecurity(customSecurityDuration); // Très important, il faut toujours avoir une issue de secours, surtout pour un système aussi crucial
-        }
-
-        /// <summary>
-        /// Auto re-enable the task manager after the indicated number of hours
-        /// </summary>
-        /// <param name="hoursBeforeUnlock"></param>
-        private static void EnableTaskManagerSecurity(int hoursBeforeUnlock)
-        {
-            Timer t = new Timer
-            {
-                Interval = hoursBeforeUnlock * 3600 * 1000,
-                AutoReset = false
-            };
-            t.Elapsed += (s, e) => SetTaskManagerActivation(true);
-            t.Start();
-        }
 
         /// <summary>
         /// Disable the key Alt & Tab for the current window
@@ -1323,7 +1275,6 @@ namespace Bolter
 
         public static void DisableAllNonAdminRestrictions()
         {
-            SetTaskManagerActivation(true);
             SetTaskbarVisible(true);
             SetStartup(false);
             ClearAutoClosePrograms();
@@ -1333,6 +1284,7 @@ namespace Bolter
             UnlockAllFolders();
             MakeThisProgramRespawnable(false,null);
             SetAltTabEnabled(true);
+            Console.WriteLine("[BOLTER] Finished disabling Non Admin restrictions");
         }
     }
 }

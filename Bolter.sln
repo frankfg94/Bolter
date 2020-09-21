@@ -24,7 +24,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BolterAdminApp", "BolterAdm
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MockService", "MockService\MockService.csproj", "{C3668887-855A-4E5A-803D-F5D8906EA27F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BolterTests", "BolterTests\BolterTests.csproj", "{D2520E61-49E7-4058-98E8-19FE3B3C1B83}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BolterTests", "BolterTests\BolterTests.csproj", "{D2520E61-49E7-4058-98E8-19FE3B3C1B83}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Matrix", "..\Matrix\Matrix\Matrix.csproj", "{530C48BC-CF15-48A9-B614-9925BC0E6246}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -68,6 +70,10 @@ Global
 		{D2520E61-49E7-4058-98E8-19FE3B3C1B83}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D2520E61-49E7-4058-98E8-19FE3B3C1B83}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D2520E61-49E7-4058-98E8-19FE3B3C1B83}.Release|Any CPU.Build.0 = Release|Any CPU
+		{530C48BC-CF15-48A9-B614-9925BC0E6246}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{530C48BC-CF15-48A9-B614-9925BC0E6246}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{530C48BC-CF15-48A9-B614-9925BC0E6246}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{530C48BC-CF15-48A9-B614-9925BC0E6246}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
