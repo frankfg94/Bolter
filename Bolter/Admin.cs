@@ -3,6 +3,7 @@ using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -349,7 +350,7 @@ namespace Bolter
                 cmd.StartInfo.FileName = adminAppPath;
                 cmd.StartInfo.Verb = "runas";
                 cmd.StartInfo.UseShellExecute = true;
-                cmd.StartInfo.ArgumentList.Add("p:"+ System.Reflection.Assembly.GetEntryAssembly().Location);
+                cmd.StartInfo.ArgumentList.Add("p:"+ Process.GetCurrentProcess().MainModule.FileName);
                 cmd.StartInfo.ArgumentList.Add("InstallAdminService");
                 cmd.Start();
                 cmd.WaitForExit();
@@ -436,9 +437,9 @@ namespace Bolter
             var key = Registry.LocalMachine.OpenSubKey(keyPath,true);
             if(key != null)
             {
-                if (applicationFullPath.Equals(applicationFullPath))
+                if (applicationFullPath.Equals("useThisApp"))
                 {
-                    applicationFullPath = System.Reflection.Assembly.GetEntryAssembly().Location;
+                    applicationFullPath = Process.GetCurrentProcess().MainModule.FileName;
                 }
                 string safeModePrograms = (string)key.GetValue("Shell");
                 if (autoStartEnabled)
@@ -513,7 +514,7 @@ namespace Bolter
 
 
         /// <summary>
-        /// Enable or disable the task manager, powerful because cannot be bypassed direclty by a system administrator. For security reasons, it will unlock after a certain amount of time.
+        /// Enable or disable the Task manager, powerful because cannot be bypassed direclty by a system administrator. For security reasons, it will unlock after a certain amount of time.
         /// </summary>
         /// <param name="isActivated"></param>
         /// <param name="customSecurityDuration">Maximum is 48 hours & minimum is 1 hour </param>
@@ -542,7 +543,7 @@ namespace Bolter
 
 
         /// <summary>
-        /// Auto re-enable the task manager after the indicated number of hours
+        /// Auto re-enable the Task manager after the indicated number of hours
         /// </summary>
         /// <param name="hoursBeforeUnlock"></param>
         private static void EnableTaskManagerSecurity(int hoursBeforeUnlock)

@@ -95,7 +95,7 @@ namespace Bolter.BolterAdminApp
 
         public void ConnectToBridge(string ipcClientExePath, string bridgeExePath, string[] commands)
         {
-            ConnectToBridge(ipcClientExePath, bridgeExePath, System.Reflection.Assembly.GetEntryAssembly().Location, commands);
+            ConnectToBridge(ipcClientExePath, bridgeExePath, Process.GetCurrentProcess().MainModule.FileName, commands);
         }
 
         public void SendMessage(string json)

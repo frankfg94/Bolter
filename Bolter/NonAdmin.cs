@@ -43,7 +43,7 @@ namespace Bolter
             public uint dwTime;
         }
 
-        // Code for the task bar hiding
+        // Code for the Task bar hiding
         [DllImport("user32.dll")]
         private static extern int FindWindow(string className, string windowText);
         [DllImport("user32.dll")]
@@ -815,7 +815,7 @@ namespace Bolter
         }
 
         /// <summary>
-        /// Return true if the task manager is enabled in this session. The task manager can be disabled even in the administrator session.
+        /// Return true if the Task manager is enabled in this session. The Task manager can be disabled even in the administrator session.
         /// </summary>
         /// <returns></returns>
         public static bool GetTaskManagerActivation()
@@ -901,7 +901,7 @@ namespace Bolter
                 rk = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
                 if (isStartup == true)
                 {
-                    rk.SetValue("Motivator", System.Reflection.Assembly.GetEntryAssembly().Location);
+                    rk.SetValue("Motivator", Process.GetCurrentProcess().MainModule.FileName);
                 }
                 else
                 {
@@ -1196,7 +1196,7 @@ namespace Bolter
         #endregion
 
         /// <summary>
-        /// Hide or Unhide the windows task bar. It can be hidden by other ways such as maximizing an existing window, but this method can be used as an additionnal security
+        /// Hide or Unhide the windows Task bar. It can be hidden by other ways such as maximizing an existing window, but this method can be used as an additionnal security
         /// </summary>
         /// <param name="isVisible"></param>
         public static void SetTaskbarVisible(bool isVisible)
@@ -1221,7 +1221,7 @@ namespace Bolter
                 respawnerProcessId = p.Id;
 
                 // Adding the exe path for the program to be respawned
-                p.StartInfo.ArgumentList.Add(System.Reflection.Assembly.GetEntryAssembly().Location);
+                p.StartInfo.ArgumentList.Add(Process.GetCurrentProcess().MainModule.FileName);
                 // Adding the processes linked to the exe path that tell the program not to be respawned
                 
                 if(verificatorProcesses == null)

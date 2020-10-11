@@ -159,7 +159,7 @@ namespace Bolter.BolterAdminApp
 
         public void ConnectToBridge(string ipcClientExePath, string bridgeExePath)
         {
-            ConnectToBridge(ipcClientExePath, bridgeExePath, System.Reflection.Assembly.GetEntryAssembly().Location);
+            ConnectToBridge(ipcClientExePath, bridgeExePath, Process.GetCurrentProcess().MainModule.FileName);
         }
 
         private void PipeClient_OutputDataReceived(object sender, DataReceivedEventArgs e)
