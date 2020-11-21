@@ -11,6 +11,7 @@
     <RepositoryType>GitHub</RepositoryType>
     <Company>François Gillioen</Company>
     <SignAssembly>false</SignAssembly>
+    <CodeAnalysisRuleSet>Bolter.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -27,6 +28,10 @@
       <Isolated>false</Isolated>
       <EmbedInteropTypes>true</EmbedInteropTypes>
     </COMReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="..\..\WebLearn\.sonarlint\motivator2\CSharp\SonarLint.xml" Link="SonarLint.xml" />
   </ItemGroup>
 
   <ItemGroup>

@@ -835,8 +835,6 @@ namespace Bolter
             return false;
         }
 
-
-
         /// <summary>
         /// Disable the key Alt & Tab for the current window
         /// </summary>
@@ -859,10 +857,11 @@ namespace Bolter
             }
         }
 
+
         /// <summary>
         /// Get the idle / inactivity time in milliseconds from the system (for example, the last time from which the system did detect a mouse movement or a key press), useful to see if the user is not using the computer / doing nothing
         /// </summary>
-        /// <returns></returns>
+        /// <returns></returns>$
         public static uint GetIdleTime()
         {
             LASTINPUTINFO LastUserAction = new LASTINPUTINFO();

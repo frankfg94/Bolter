@@ -622,7 +622,23 @@ namespace Bolter
 
             Console.Write("\n[UNBLOCKER Admins] Success !");
         }
-    
+        /// <summary>
+        /// Disable the detection of USB devices, only take effect after computer restart
+        /// </summary>
+        /// <param name="isUSBRestricted"></param>
+        public static void RestrictUSB(bool isUSBRestricted)
+        {
+            RegistryKey key = Registry.LocalMachine.OpenSubKey("SYSTEM\\CurrentControlSet\\Services\\UsbStor",true);
+            if (isUSBRestricted)
+            {
+                key.SetValue("Start", 4, RegistryValueKind.DWord); // disables usb
+            }
+            else
+            {
+                key.SetValue("Start", 3, RegistryValueKind.DWord); // enables usb
+            }
+        }
+
         /// <summary>
         /// Disables both admin & non admin restrictions
         /// </summary>
