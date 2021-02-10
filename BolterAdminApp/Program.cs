@@ -1,11 +1,9 @@
 ﻿using Bolter;
 using System;
 using System.IO;
-using System.IO.Pipes;
 using System.Linq;
 using System.ServiceProcess;
 using System.Threading;
-using System.Windows.Documents;
 
 namespace BolterAdminApp
 {
@@ -14,26 +12,32 @@ namespace BolterAdminApp
         static string appUsingBolterPath = "unknown";
         bool quickTest = true;
         /// <summary>
-        // THis is started with the bridge process
+        /// This app must be run with administratives privileges because its purpose is to run Bolter.Admin static methods. <br/>
+        /// Its main purpose is to install the bolter admin service (to avoid running the UAC prompt in the used apps) to do this, we can use <see cref="Admin.InstallService(string, string, string, bool, bool)"/><br/>
+        /// <br/> Note : This is supposed to be started with the bridge process, but it can be used directly for debugging it or if we don't want to use the Bolter Service
         /// </summary>
         /// <param name="args"></param>
         // TODO : create a service , so we will only one install with uac prompt at the beginning and we can also keep the IPC
         static void Main(string[] args)
         {
-            Console.WriteLine("Started BolterAdminApp");
+            Console.WriteLine("---------------------------------");
+            Console.WriteLine("| Bolter admin command executor |");
+            Console.WriteLine("---------------------------------");
             try
             {
-                ProcessStartHandling(args); // First feature, execute all commands
+                ProcessStartHandling(args); // First feature, execute all commands passed directly into the app
                 StartIPCClient(); // Second feature, create a server to keep the listener active (not needed bc of the service)
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
+                Console.WriteLine("Keeping this window open, because an error occured");
                 new ManualResetEvent(false).WaitOne();
             }
             finally
             {
-               // new ManualResetEvent(false).WaitOne();
+                // new ManualResetEvent(false).WaitOne();
+                Console.WriteLine("Operations finished, closing admin bolter app...");
             }
 
         }
@@ -80,30 +84,30 @@ namespace BolterAdminApp
 
         private static void StartIPCClient()
         {
-      //      var client = new NamedPipeClientStream("PipesOfPiece");
-      //      client.Connect(10000);
-     //       new Thread(() =>
-     //       {
-    //            StreamReader reader = new StreamReader(client);
-    //            while (true)
-   //             {
-   //                 if (!reader.EndOfStream)
-  //                  {
-  //                      var serverMsg = reader.ReadLine();
-  //                      Console.WriteLine("received: " + serverMsg);
-  //                      if (serverMsg.Contains("unblock"))
-                        {
-     //                       Admin.DisableAllPossibleRestrictions(appUsingBolterPath);
-    //                        Console.WriteLine("Unblocked everything successfully");
-                        }
-      //                  else
-                        {
-      //                      ExecuteUACCommand(serverMsg);
-                        }
-//                    }
-//                }
-//            }).Start();
-//           Thread.Sleep(200);
+            //      var client = new NamedPipeClientStream("PipesOfPiece");
+            //      client.Connect(10000);
+            //       new Thread(() =>
+            //       {
+            //            StreamReader reader = new StreamReader(client);
+            //            while (true)
+            //             {
+            //                 if (!reader.EndOfStream)
+            //                  {
+            //                      var serverMsg = reader.ReadLine();
+            //                      Console.WriteLine("received: " + serverMsg);
+            //                      if (serverMsg.Contains("unblock"))
+            {
+                //                       Admin.DisableAllPossibleRestrictions(appUsingBolterPath);
+                //                        Console.WriteLine("Unblocked everything successfully");
+            }
+            //                  else
+            {
+                //                      ExecuteUACCommand(serverMsg);
+            }
+            //                    }
+            //                }
+            //            }).Start();
+            //           Thread.Sleep(200);
         }
 
         private static void ExecuteUACCommand(string commandName)
@@ -111,10 +115,17 @@ namespace BolterAdminApp
             var serviceName = "Bolter Admin Service";
             var serviceExeName = "AdminBolterService";
             string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.FullName; // path for all visual studio projects
-            var path = projectDirPath+@$"\Bolter\AdminBolterService\bin\Release\netcoreapp3.1\publish\{serviceExeName}.exe";
+            string exeRelativePath = @$"\Bolter\AdminBolterService\bin\Release\netcoreapp3.1\publish\{serviceExeName}.exe";
+            var path = projectDirPath + exeRelativePath;
+            Console.WriteLine("Checking " + path);
             if (!File.Exists(path))
             {
-                throw new FileNotFoundException("Service can't be created because executable not found at " + path);
+                path = Directory.GetParent(projectDirPath).FullName + exeRelativePath;
+                Console.WriteLine("Checking " + path);
+                if(!File.Exists(path))
+                {
+                    throw new FileNotFoundException("Service can't be created because executable not found for the listed paths above");
+                }
             }
             switch (commandName)
             {
@@ -137,9 +148,9 @@ namespace BolterAdminApp
                     Thread.Sleep(3000);
                     ServiceController service = new ServiceController(serviceName);
 
-                    if ((service.Status.Equals(ServiceControllerStatus.Stopped)) ||
+                    if (service.Status.Equals(ServiceControllerStatus.Stopped) ||
 
-                        (service.Status.Equals(ServiceControllerStatus.StopPending)))
+                        service.Status.Equals(ServiceControllerStatus.StopPending))
 
                         service.Start();
                     Console.WriteLine(">>> Service started");

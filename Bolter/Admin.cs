@@ -7,11 +7,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Security.AccessControl;
 using System.Security.Permissions;
 using System.Security.Principal;
-using System.ServiceProcess;
-using System.Text;
 using System.Threading;
 
 namespace Bolter
@@ -201,22 +198,22 @@ namespace Bolter
                 String sidString = s.ToString();
 
                 string subKey = @"\Software\Policies\Microsoft\Windows\System";
-                    var key = Registry.Users.CreateSubKey(sidString + subKey, true);
-                    if (key != null)
-                    {
-                        File.AppendAllText(p, sidString);
-                        Console.WriteLine("Setting :" + key.Name);
-                        Console.WriteLine(key.ToString());
-                        
-                        if (block)
-                            key.SetValue("DisableCMD", 1); //  A 1 bloque CMD et les fichiers BAT , à 2 bloque CMD seulement
-                        else
-                            key.SetValue("DisableCMD", 0); // Débloque CMD et les fichiers BAT
-                    }
+                var key = Registry.Users.CreateSubKey(sidString + subKey, true);
+                if (key != null)
+                {
+                    File.AppendAllText(p, sidString);
+                    Console.WriteLine("Setting :" + key.Name);
+                    Console.WriteLine(key.ToString());
+
+                    if (block)
+                        key.SetValue("DisableCMD", 1); //  A 1 bloque CMD et les fichiers BAT , à 2 bloque CMD seulement
                     else
-                    {
-                        throw new NullReferenceException("Error : key is null for registry current user");
-                    }
+                        key.SetValue("DisableCMD", 0); // Débloque CMD et les fichiers BAT
+                }
+                else
+                {
+                    throw new NullReferenceException("Error : key is null for registry current user");
+                }
             }
             catch (Exception ex)
             {
@@ -319,7 +316,7 @@ namespace Bolter
                     sw.WriteLine($"sc stop \"{serviceName}\"");
                     Thread.Sleep(5000);
                     Console.WriteLine(">>> Service stopped");
-                    
+
                     Console.WriteLine($"sc delete \"{serviceName}\"");
                     sw.WriteLine($"sc delete \"{serviceName}\"");
                     Thread.Sleep(5000);
@@ -335,26 +332,72 @@ namespace Bolter
         /// <summary>
         /// Install a service automatically from the folder AdminBolterService as LocalSystem (highest possible privileges)
         /// At the moment, it checks the service in the publish folder of the project, it must be fixed for production usage.
+        /// It will use an admin C# app to install with the name <paramref name="adminAppName"/>.exe to have the administrator permissions required to install the service.
         /// It can also work if the app is not in admin mode & <paramref name="enableUACprompt"/> is set to true. An UAC prompt will ask to install the service with a slightly different code (to solve compatibility issues that we have if we reuse this same function)
         /// </summary>
         ///  <remarks>	<i>This requires the app to be in administrator mode (if you don't want any prompts) </i></remarks>
         /// <param name="serviceExeName">Name of the executable without the exe</param>
-        public static void InstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service", bool autoStart = true, bool enableUACprompt = true)
+        public static void InstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service",
+            string adminAppName = "BolterAdminApp", bool autoStart = true, bool enableUACprompt = true)
         {
-            //cmd.StartInfo.CreateNoWindow = true;
-            if(enableUACprompt && !NonAdmin.IsInAdministratorMode())
+            if (NonAdmin.DoesServiceExist(serviceName, Environment.MachineName))
             {
-                string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.FullName; // The path to all visual studio projects
-                var adminAppPath = projectDirPath + @$"\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\BolterAdminApp.exe";
+                Console.WriteLine("[Note] Admin service is already installed, it will be reinstalled now");
+            }
+
+            //cmd.StartInfo.CreateNoWindow = true;
+            if (enableUACprompt && !NonAdmin.IsInAdministratorMode())
+            {
+                string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.Parent.FullName; // The path to all visual studio projects
+                var adminAppPath = projectDirPath + @$"\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\{adminAppName}.exe";
                 System.Diagnostics.Process cmd = new System.Diagnostics.Process();
                 cmd.StartInfo.FileName = adminAppPath;
                 cmd.StartInfo.Verb = "runas";
                 cmd.StartInfo.UseShellExecute = true;
-                cmd.StartInfo.ArgumentList.Add("p:"+ Process.GetCurrentProcess().MainModule.FileName);
+                cmd.StartInfo.ArgumentList.Add("p:" + Process.GetCurrentProcess().MainModule.FileName);
                 cmd.StartInfo.ArgumentList.Add("InstallAdminService");
-                cmd.Start();
-                cmd.WaitForExit();
-                Console.WriteLine("Motivator Service is now installed!");
+                Console.WriteLine("Checking " + adminAppPath);
+
+                if (!File.Exists(adminAppPath))
+                {
+                    // If the file is not found motivator will try getting the Admin app executable in the same folder of motivator console executable
+                    adminAppPath = Path.Join(Directory.GetParent(System.Reflection.Assembly.GetEntryAssembly().Location).FullName, adminAppName + ".exe");
+                    cmd.StartInfo.FileName = adminAppName;
+                    Console.WriteLine("Checking " + adminAppPath);
+                }
+                if (!File.Exists(adminAppPath))
+                {
+                    Bolter.Other.Warn("[X] Failed to find the UAC service installer on all listed paths, service can't be installed");
+                }
+                else
+                {
+                    try
+                    {
+                        Stopwatch s = new Stopwatch();
+                        s.Start();
+                        cmd.Start();
+                        cmd.WaitForExit();
+                        s.Stop();
+
+                        if (s.ElapsedMilliseconds < 1000)
+                        {
+                            Bolter.Other.Warn("The installation speed was less than 1 second, which is anormaly fast. If the admin window appeared and closed instantly, it might be a missing dll dependencies error");
+                        }
+                        if (NonAdmin.DoesServiceExist(serviceName, Environment.MachineName))
+                        {
+                            Console.WriteLine("Admin service is now installed!");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Admin service is not installed");
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Failed to install motivator service... " + Environment.NewLine + e);
+                    }
+                }
+
             }
             else
             {
@@ -434,8 +477,8 @@ namespace Bolter
         {
             // LocalMachine is needed, so we also need UAC auth
             var keyPath = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
-            var key = Registry.LocalMachine.OpenSubKey(keyPath,true);
-            if(key != null)
+            var key = Registry.LocalMachine.OpenSubKey(keyPath, true);
+            if (key != null)
             {
                 if (applicationFullPath.Equals("useThisApp"))
                 {
@@ -444,18 +487,18 @@ namespace Bolter
                 string safeModePrograms = (string)key.GetValue("Shell");
                 if (autoStartEnabled)
                 {
-                    if(!safeModePrograms.Contains(applicationFullPath))
-                    // Append our app to the list of the apps
-                    key.SetValue("Shell",safeModePrograms + ";" +applicationFullPath);
+                    if (!safeModePrograms.Contains(applicationFullPath))
+                        // Append our app to the list of the apps
+                        key.SetValue("Shell", safeModePrograms + ";" + applicationFullPath);
                 }
                 else
                 {
                     // Remove the app path without touching the other datas
-                    var before = safeModePrograms; 
+                    var before = safeModePrograms;
                     var after = safeModePrograms.Replace(";" + applicationFullPath, string.Empty);
-                    var bolterBlacklistedStrings = new string[] { "Bolter", "Motivator"};
+                    var bolterBlacklistedStrings = new string[] { "Bolter", "Motivator" };
                     // If the remove 1 couldn't work, try the second technique, remove the path
-                    if(before.Equals(after))
+                    if (before.Equals(after))
                     {
                         // First fail, remove 2 removes all the paths containing the critical/blacklisted strings
                         foreach (var path in safeModePrograms.Split(";"))
@@ -469,7 +512,7 @@ namespace Bolter
                             }
                         }
                         // If the remove 2 failed 
-                        if(before.Equals(after))
+                        if (before.Equals(after))
                         {
                             Other.Warn("We couldn't remove the autostart precisely, instead we choose the reset the regedit command to 'explorer' ");
                             key.SetValue("Shell", "explorer");
@@ -477,20 +520,20 @@ namespace Bolter
                         else
                         {
                             // Removal 2 success
-                            key.SetValue("Shell",after);
+                            key.SetValue("Shell", after);
                         }
                     }
                     else
                     {
                         // Removal 1 sucesss
-                        key.SetValue("Shell",after);
+                        key.SetValue("Shell", after);
                     }
 
                 }
                 if (safeModePrograms.Last().Equals(';'))
                 {
                     // Remove the last comma
-                    key.SetValue("Shell", safeModePrograms.Substring(0,safeModePrograms.Length - 1));
+                    key.SetValue("Shell", safeModePrograms.Substring(0, safeModePrograms.Length - 1));
                 }
             }
             else
@@ -532,7 +575,7 @@ namespace Bolter
                 key.DeleteValue("DisableTaskMgr");
                 key.Close();
             }
-            else 
+            else
             {
                 key.SetValue("DisableTaskMgr", "1", RegistryValueKind.DWord);
                 key.Close();
@@ -579,7 +622,7 @@ namespace Bolter
             SetTaskManagerActivation(true);
 
 
-            if(foldersPathToUnlock == null)
+            if (foldersPathToUnlock == null)
             {
                 NonAdmin.UnlockAllFolders();
             }
@@ -628,7 +671,7 @@ namespace Bolter
         /// <param name="isUSBRestricted"></param>
         public static void RestrictUSB(bool isUSBRestricted)
         {
-            RegistryKey key = Registry.LocalMachine.OpenSubKey("SYSTEM\\CurrentControlSet\\Services\\UsbStor",true);
+            RegistryKey key = Registry.LocalMachine.OpenSubKey("SYSTEM\\CurrentControlSet\\Services\\UsbStor", true);
             if (isUSBRestricted)
             {
                 key.SetValue("Start", 4, RegistryValueKind.DWord); // disables usb
@@ -659,7 +702,7 @@ namespace Bolter
         public static void SetWebsiteBlocked(bool block, string domain)
         {
             string path = @"C:\Windows\System32\drivers\etc\hosts";
-            if(block)
+            if (block)
             {
                 StreamWriter sw = new StreamWriter(path, true);
                 string sitetoblock = "\n 127.0.0.1 " + domain;
@@ -668,19 +711,19 @@ namespace Bolter
             }
             else
             {
-               var text = File.ReadAllLines(path);
-                List<string> newText = new List<string>(); 
+                var text = File.ReadAllLines(path);
+                List<string> newText = new List<string>();
                 foreach (var line in text)
                 {
-                    if(!line.Contains(domain))
+                    if (!line.Contains(domain))
                     {
                         newText.Add(line);
                     }
                 }
-                File.WriteAllLines(path,newText);
+                File.WriteAllLines(path, newText);
             }
-        }   
+        }
 
-}
+    }
 
 }
