@@ -2,26 +2,38 @@
 using System;
 using System.IO;
 using System.Linq;
+using log4net;
+using log4net.Config;
 using System.ServiceProcess;
 using System.Threading;
+using System.Reflection;
 
 namespace BolterAdminApp
 {
     class Program
     {
         static string appUsingBolterPath = "unknown";
-        bool quickTest = true;
+        private const string LOG_4_NET_FILE = "log4net.config";
+        private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         /// <summary>
         /// This app must be run with administratives privileges because its purpose is to run Bolter.Admin static methods. <br/>
         /// Its main purpose is to install the bolter admin service (to avoid running the UAC prompt in the used apps) to do this, we can use <see cref="Admin.InstallService(string, string, string, bool, bool)"/><br/>
         /// <br/> Note : This is supposed to be started with the bridge process, but it can be used directly for debugging it or if we don't want to use the Bolter Service
         /// </summary>
         /// <param name="args"></param>
-        // TODO : create a service , so we will only one install with uac prompt at the beginning and we can also keep the IPC
         static void Main(string[] args)
         {
+
+            System.AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException; ;
+
+            // Load log4net configuration
+            var logRepository = LogManager.GetRepository(Assembly.GetEntryAssembly());
+            XmlConfigurator.Configure(logRepository, new FileInfo(LOG_4_NET_FILE));
+            log.Debug("Started app with args : (\n" + string.Join("\n\t",args) + "\n)");
+
+
             Console.WriteLine("---------------------------------");
-            Console.WriteLine("| Bolter admin command executor |");
+            Console.WriteLine("| Bolter admin command executor  |");
             Console.WriteLine("---------------------------------");
             try
             {
@@ -30,16 +42,24 @@ namespace BolterAdminApp
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
-                Console.WriteLine("Keeping this window open, because an error occured");
-                new ManualResetEvent(false).WaitOne();
+                log.Error(e);
+                log.Info("Keeping this window open, because an error occured");
+                Console.ReadLine();
+                Environment.Exit(1);
             }
             finally
             {
-                // new ManualResetEvent(false).WaitOne();
-                Console.WriteLine("Operations finished, closing admin bolter app...");
+                log.Info("Operations finished, closing admin bolter app...");
             }
 
+        }
+
+        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            log.Error(e.ExceptionObject.ToString());
+            Console.WriteLine("Press Enter to continue");
+            Console.ReadLine();
+            Environment.Exit(1);
         }
 
         private static void ProcessStartHandling(string[] args)
@@ -47,17 +67,18 @@ namespace BolterAdminApp
 
             if (args.Length < 1)
             {
-                throw new Exception("No arguments. At least one argument is needed (the path of the app) prefixed with p:");
+                throw new ArgumentNullException("No arguments. At least one argument is needed (the path of the app) prefixed with p:");
             }
 
             for (int i = 0; i < args.Length; i++)
             {
+                log.Debug("Scanning arg : " + args[i]);
                 if (i == 0)
                 {
-                    if (args[0].StartsWith("p:"))
+                    if (args[i].StartsWith("p:"))
                     {
                         // Store the path as the first param
-                        appUsingBolterPath = args[0].Split(":").Last();
+                        appUsingBolterPath = Other.UnescapeCMD(args[0].Split(":").Last());
                     }
                     else
                     {
@@ -70,7 +91,7 @@ namespace BolterAdminApp
                     if (args[i].Contains("unblock"))
                     {
                         Bolter.Admin.DisableAllPossibleRestrictions(appUsingBolterPath);
-                        Console.WriteLine("Unblocked everything successfully, exiting");
+                        log.Info("Unblocked everything successfully, exiting");
                         return;
                     }
                     else
@@ -110,69 +131,20 @@ namespace BolterAdminApp
             //           Thread.Sleep(200);
         }
 
+
         private static void ExecuteUACCommand(string commandName)
         {
-            var serviceName = "Bolter Admin Service";
-            var serviceExeName = "AdminBolterService";
-            string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.FullName; // path for all visual studio projects
-            string exeRelativePath = @$"\Bolter\AdminBolterService\bin\Release\netcoreapp3.1\publish\{serviceExeName}.exe";
-            var path = projectDirPath + exeRelativePath;
-            Console.WriteLine("Checking " + path);
-            if (!File.Exists(path))
+            log.Info("Trying to execute command : " + commandName);
+            switch(commandName.ToLower())
             {
-                path = Directory.GetParent(projectDirPath).FullName + exeRelativePath;
-                Console.WriteLine("Checking " + path);
-                if(!File.Exists(path))
-                {
-                    throw new FileNotFoundException("Service can't be created because executable not found for the listed paths above");
-                }
-            }
-            switch (commandName)
-            {
-                case "InstallAdminService":
-                    System.Diagnostics.Process.Start("CMD.exe", $"/C sc stop \"{serviceName}\"");
-                    Thread.Sleep(5000);
-                    Console.WriteLine(">>> Service stopped");
-                    System.Diagnostics.Process.Start("CMD.exe", $"/C sc delete \"{serviceName}\"");
-                    Console.WriteLine(">>> Service deleted");
-                    Thread.Sleep(5000);
-                    var commandCreateService = $"/C sc create \"{serviceName}\" binPath=" + path;
-                    System.Diagnostics.Process.Start("CMD.exe", commandCreateService);
-                    Console.WriteLine(">>> Service created");
-                    Console.WriteLine("Path :" + path);
-                    Thread.Sleep(5000);
-                    System.Diagnostics.Process.Start("CMD.exe", $"/C sc config \"{serviceName}\" start=\"auto\"");
-                    Console.WriteLine(">>> Automatic startup set");
-                    Thread.Sleep(200);
-                    System.Diagnostics.Process.Start("CMD.exe", $"/C sc query \"{serviceName}\"");
-                    Thread.Sleep(3000);
-                    ServiceController service = new ServiceController(serviceName);
-
-                    if (service.Status.Equals(ServiceControllerStatus.Stopped) ||
-
-                        service.Status.Equals(ServiceControllerStatus.StopPending))
-
-                        service.Start();
-                    Console.WriteLine(">>> Service started");
-                    Thread.Sleep(5000);
-                    break;
-                case "InstallNtRights":
-                    Admin.InstallNtRights();
-                    break;
-                case "SetBatchAndCMDBlock":
-                    Admin.SetBatchAndCMDBlock(true, Environment.UserName);
-                    break;
-                case "PreventDateEditingW10":
-                    Admin.PreventDateEditingW10(true);
-                    break;
-                case "SetStartupSafeMode":
-                    Admin.SetStartupSafeMode(true);
-                    break;
-                case "SetWebsiteBlocked":
-                    Console.WriteLine("SetWebsiteBlocked is not supported yet, because we need to pass each website address");
+                case "installadminservice":
+                case "installservice":
+                    Admin.InstallService();
                     break;
                 default:
-                    Bolter.Other.Warn("Unknown command : " + commandName);
+                    var msg = "Unknown command : " + commandName;
+                    Other.Warn(msg);
+                    log.Warn(msg);
                     break;
             }
         }

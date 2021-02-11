@@ -276,6 +276,12 @@ namespace Bolter
             }
         }
 
+        /// <summary>
+        /// Return true if the service exists on the given machine
+        /// </summary>
+        /// <param name="serviceName"></param>
+        /// <param name="machineName"></param>
+        /// <returns></returns>
         public static bool DoesServiceExist(string serviceName, string machineName)
         {
             ServiceController[] services = ServiceController.GetServices(machineName);
@@ -312,8 +318,8 @@ namespace Bolter
         /// Closes a program automatically between two periods of this day. The auto closer will be updated immediatly.
         /// </summary>
         /// <param name="programName"></param>
-        /// <param name="startDate"></param>
-        /// <param name="endDate"></param>
+        /// <param name="startDate">Date from which the program will be automatically closed</param>
+        /// <param name="endDate">Date from which the program will stop being automatically closed </param>
         /// <param name="autoStartAutoCloser">If this is set to false, you will also have to call SetProgramAutoCloser to true to start the program closer</param>
         public static void AddAutoCloseProgram(string programName, TimeSpan startTime, TimeSpan endTime, bool autoStartAutoCloser = true)
         {
@@ -656,17 +662,18 @@ namespace Bolter
         private static void SetFileStreamAntiDelete(string path, bool lockWithFileStream)
         {
             string lockFilePath = null;
+            string lockFileName = "\\lock.Bolter";
             // path is Folder
             if (Directory.Exists(path))
             {
                 if (lockWithFileStream)
                 {
-                    File.Create(path + "\\lock.Bolter").Close();
-                    lockFilePath = path + "\\lock.Bolter";
+                    File.Create(path + lockFileName).Close();
+                    lockFilePath = path + lockFileName;
                 }
                 else
                 {
-                    lockFilePath = path + "\\lock.Bolter";
+                    lockFilePath = path + lockFileName;
                 }
             }
             // path is file
@@ -861,7 +868,7 @@ namespace Bolter
         /// <summary>
         /// Get the idle / inactivity time in milliseconds from the system (for example, the last time from which the system did detect a mouse movement or a key press), useful to see if the user is not using the computer / doing nothing
         /// </summary>
-        /// <returns></returns>$
+        /// <returns></returns>
         public static uint GetIdleTime()
         {
             LASTINPUTINFO LastUserAction = new LASTINPUTINFO();
@@ -1053,7 +1060,7 @@ namespace Bolter
                 }.Start();
             }
         }
-
+        // TODO check if it works
         public static void RenameProcess(string processName, string newName)
         {
             Process p = Process.GetProcessesByName(processName).FirstOrDefault();
@@ -1071,6 +1078,7 @@ namespace Bolter
             SetWindowText(p.MainWindowHandle, newName);
         }
 
+        // TODO : check if it works
         public static void CreateLocalUser(string username, string password, string description, string userGroupName = "Users")
         {
             DirectoryEntry localDirectory = new DirectoryEntry("WinNT://" + Environment.MachineName.ToString());
@@ -1212,6 +1220,12 @@ namespace Bolter
             }
         }
         private static int respawnerProcessId = -1;
+
+        /// <summary>
+        /// Enable the program to be respawned by another process, it means that if it closed, it will automatically restart
+        /// </summary>
+        /// <param name="canRespawn"></param>
+        /// <param name="verificatorProcesses"></param>
         public static void MakeThisProgramRespawnable(bool canRespawn, string[] verificatorProcesses)
         {
             if (canRespawn)
@@ -1271,7 +1285,9 @@ namespace Bolter
             return isElevated;
         }
 
-
+        /// <summary>
+        /// Disable all possible restrictions for the class <see cref="NonAdmin"/>
+        /// </summary>
         public static void DisableAllNonAdminRestrictions()
         {
             SetTaskbarVisible(true);

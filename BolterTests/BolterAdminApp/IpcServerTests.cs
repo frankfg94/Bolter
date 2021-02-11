@@ -1,8 +1,4 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Bolter.BolterAdminApp;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 
 namespace Bolter.BolterAdminApp.Tests

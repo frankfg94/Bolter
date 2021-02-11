@@ -1,4 +1,5 @@
 using System.Windows;
+[assembly: log4net.Config.XmlConfigurator(ConfigFile = "log4net.config")]
 
 [assembly: ThemeInfo(
     ResourceDictionaryLocation.None, //where theme specific resource dictionaries are located

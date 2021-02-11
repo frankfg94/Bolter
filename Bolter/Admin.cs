@@ -9,10 +9,12 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Permissions;
 using System.Security.Principal;
+using System.ServiceProcess;
 using System.Threading;
 
 namespace Bolter
 {
+
     [PermissionSetAttribute(SecurityAction.Demand, Name = "FullTrust")]
     /// <summary>
     /// This class provides useful kiosk / security commands, it requires the windows program to be in UAC/administrator mode
@@ -52,72 +54,6 @@ namespace Bolter
             }
         }
 
-        enum TOKEN_INFORMATION_CLASS
-        {
-            TokenUser,
-            TokenGroups,
-            TokenPrivileges,
-            TokenOwner,
-            TokenPrimaryGroup,
-            TokenDefaultDacl,
-            TokenSource,
-            TokenType,
-            TokenImpersonationLevel,
-            TokenStatistics,
-            TokenRestrictedSids,
-            TokenSessionId,
-            TokenGroupsAndPrivileges,
-            TokenSessionReference,
-            TokenSandBoxInert,
-            TokenAuditPolicy,
-            TokenOrigin,
-            TokenElevationType,
-            TokenLinkedToken = 19,
-            TokenElevation,
-            TokenHasRestrictions,
-            TokenAccessInformation,
-            TokenVirtualizationAllowed,
-            TokenVirtualizationEnabled,
-            TokenIntegrityLevel,
-            TokenUIAccess,
-            TokenMandatoryPolicy,
-            TokenLogonSid,
-            TokenIsAppContainer,
-            TokenCapabilities,
-            TokenAppContainerSid,
-            TokenAppContainerNumber,
-            TokenUserClaimAttributes,
-            TokenDeviceClaimAttributes,
-            TokenRestrictedUserClaimAttributes,
-            TokenRestrictedDeviceClaimAttributes,
-            TokenDeviceGroups,
-            TokenRestrictedDeviceGroups,
-            TokenSecurityAttributes,
-            TokenIsRestricted,
-            TokenProcessTrustLevel,
-            TokenPrivateNameSpace,
-            TokenSingletonAttributes,
-            TokenBnoIsolation,
-            TokenChildProcessFlags,
-            TokenIsLessPrivilegedAppContainer,
-            TokenIsSandboxed,
-            TokenOriginatingProcessTrustLevel,
-            MaxTokenInfoClass
-        }
-
-        [DllImport("advapi32.dll", SetLastError = true)]
-        static extern bool GetTokenInformation(
-    IntPtr TokenHandle,
-    TOKEN_INFORMATION_CLASS TokenInformationClass,
-    IntPtr TokenInformation,
-    uint TokenInformationLength,
-    out uint ReturnLength);
-
-
-        public struct TOKEN_USER
-        {
-            public SID_AND_ATTRIBUTES User;
-        }
 
         [StructLayout(LayoutKind.Sequential)]
         public struct SID_AND_ATTRIBUTES
@@ -125,29 +61,6 @@ namespace Bolter
 
             public IntPtr Sid;
             public int Attributes;
-        }
-
-
-
-        private static IntPtr GetAdminToken(ref IntPtr restrictedToken)
-        {
-            /*
-            bool Result;
-            IntPtr hLinkedToken = IntPtr.Zero;
-            uint iRetSize;
-            //token = WindowsIdentity.GetCurrent().Token;
-            //Result = GetTokenInformation(WindowsIdentity.GetCurrent().Token, TOKEN_INFORMATION_CLASS.TokenUser, IntPtr.Zero, TokenInfLength, out TokenInfLength);
-            Result = GetTokenInformation(restrictedToken, TOKEN_INFORMATION_CLASS.TokenLinkedToken, hLinkedToken,1000, out iRetSize);
-
-            if (!Result)
-            {
-                int ret = Marshal.GetLastWin32Error();
-                // throw new System.ComponentModel.Win32Exception(ret);
-                Console.WriteLine("Error " + 24);
-            }
-            */
-
-            return restrictedToken;
         }
 
         /// <summary>
@@ -190,7 +103,7 @@ namespace Bolter
 
         private static void _SetBatchAndCMDBlock(bool block, string currentUsername)
         {
-            var p = (Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "logBolterService.txt"));
+            var p = (Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "logBolterService.txt"));
             try
             {
                 NTAccount f = new NTAccount(currentUsername);
@@ -337,6 +250,10 @@ namespace Bolter
         /// </summary>
         ///  <remarks>	<i>This requires the app to be in administrator mode (if you don't want any prompts) </i></remarks>
         /// <param name="serviceExeName">Name of the executable without the exe</param>
+        /// <param name="adminAppName">Admin application name</param>
+        /// <param name="autoStart">Enable auto starting of the service</param>
+        /// <param name="enableUACprompt">If set to true, the service can be installed with an UAC prompt</param>
+        /// <param name="serviceName">The name of the service to reinstall/install for executing bolter commands</param>
         public static void InstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service",
             string adminAppName = "BolterAdminApp", bool autoStart = true, bool enableUACprompt = true)
         {
@@ -344,33 +261,44 @@ namespace Bolter
             {
                 Console.WriteLine("[Note] Admin service is already installed, it will be reinstalled now");
             }
-
+            int stepCount = 6;
+            if (!autoStart)
+                stepCount--;
+            int curStep = 1;
             //cmd.StartInfo.CreateNoWindow = true;
+            
+            // If the app running this command doesn't have the administrative privilege, it will ask to open an elevated one made for running bolter commands, destined in this case to run the InstallService command
             if (enableUACprompt && !NonAdmin.IsInAdministratorMode())
             {
+                Console.WriteLine("Service to install : " + serviceName);
+
                 string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.Parent.FullName; // The path to all visual studio projects
                 var adminAppPath = projectDirPath + @$"\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\{adminAppName}.exe";
-                System.Diagnostics.Process cmd = new System.Diagnostics.Process();
-                cmd.StartInfo.FileName = adminAppPath;
-                cmd.StartInfo.Verb = "runas";
-                cmd.StartInfo.UseShellExecute = true;
-                cmd.StartInfo.ArgumentList.Add("p:" + Process.GetCurrentProcess().MainModule.FileName);
+                adminAppPath = @"C:\Users\franc\source\repos\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\BolterAdminApp.exe";
+                Process cmd = new Process();
+                cmd.StartInfo = new ProcessStartInfo{
+                    FileName = adminAppPath,
+                    Verb = "runas",
+                    UseShellExecute = true,
+                };
+                Console.WriteLine("Sending p:" + Other.EscapeCMD(Process.GetCurrentProcess().MainModule.FileName));
+                cmd.StartInfo.ArgumentList.Add("p:" +Other.EscapeCMD(Process.GetCurrentProcess().MainModule.FileName));
                 cmd.StartInfo.ArgumentList.Add("InstallAdminService");
                 Console.WriteLine("Checking " + adminAppPath);
 
                 if (!File.Exists(adminAppPath))
                 {
-                    // If the file is not found motivator will try getting the Admin app executable in the same folder of motivator console executable
+                    // If the file is not found for the first path, motivator will try getting the Admin app executable in the same folder of motivator console executable
                     adminAppPath = Path.Join(Directory.GetParent(System.Reflection.Assembly.GetEntryAssembly().Location).FullName, adminAppName + ".exe");
                     cmd.StartInfo.FileName = adminAppName;
                     Console.WriteLine("Checking " + adminAppPath);
+                    if (!File.Exists(adminAppPath))
+                    {
+                        Bolter.Other.Warn("[X] Failed to find the UAC service installer on all listed paths, service can't be installed");
+                        return;
+                    }
                 }
-                if (!File.Exists(adminAppPath))
-                {
-                    Bolter.Other.Warn("[X] Failed to find the UAC service installer on all listed paths, service can't be installed");
-                }
-                else
-                {
+
                     try
                     {
                         Stopwatch s = new Stopwatch();
@@ -379,13 +307,13 @@ namespace Bolter
                         cmd.WaitForExit();
                         s.Stop();
 
-                        if (s.ElapsedMilliseconds < 1000)
+                        if (s.ElapsedMilliseconds < 2000)
                         {
-                            Bolter.Other.Warn("The installation speed was less than 1 second, which is anormaly fast. If the admin window appeared and closed instantly, it might be a missing dll dependencies error");
+                            Bolter.Other.Warn("The installation speed was less than 2 seconds, which is anormaly fast. If the admin window appeared and closed instantly, it might be a missing dll dependencies error");
                         }
                         if (NonAdmin.DoesServiceExist(serviceName, Environment.MachineName))
                         {
-                            Console.WriteLine("Admin service is now installed!");
+                            Console.WriteLine("Admin service is now installed! \nTotal time :  " + s.Elapsed.TotalSeconds + " seconds");
                         }
                         else
                         {
@@ -396,9 +324,8 @@ namespace Bolter
                     {
                         Console.WriteLine("Failed to install motivator service... " + Environment.NewLine + e);
                     }
-                }
-
             }
+            // If the command is ran within the admin app, install the service directly
             else
             {
                 System.Diagnostics.Process cmd = new System.Diagnostics.Process();
@@ -410,60 +337,93 @@ namespace Bolter
                 cmd.StartInfo.UseShellExecute = false;
                 cmd.Start();
                 cmd.OutputDataReceived += (sender, e) => { Console.WriteLine(e.Data); };
-                cmd.ErrorDataReceived += (sender, e) => { Bolter.Other.Warn(e.Data); };
+                cmd.ErrorDataReceived += (sender, e) => { Other.Warn(e.Data); };
                 cmd.BeginOutputReadLine();
                 cmd.BeginErrorReadLine();
 
+                string GetStep()
+                {
+                    return $"[STEP {curStep++}/{stepCount}]";
+                };
+
+                string exeRelativePath = @$"\Bolter\AdminBolterService\bin\Release\netcoreapp3.1\publish\{serviceExeName}.exe";
                 string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.FullName; // The path to all visual studio projects
-                var path = projectDirPath + @$"\Bolter\AdminBolterService\bin\Release\netcoreapp3.1\publish\{serviceExeName}.exe";
-                var commandCreateService = $"sc create \"{serviceName}\" binPath=" + path;
+                var path = Path.Join(projectDirPath,exeRelativePath);
+                Console.WriteLine("Checking " + path);
                 if (!File.Exists(path))
                 {
-                    throw new FileNotFoundException("The file doesn't exist at :" + path);
+                    projectDirPath = Directory.GetParent(projectDirPath).FullName;
+                    path = Path.Join(projectDirPath,exeRelativePath);
+                    Console.WriteLine("Checking " + path);
+                    if(!File.Exists(path))
+                    {
+                        Console.WriteLine("The admin app doesn't exist for the paths listed above");
+                        return;
+                    }
                 }
+                var commandStopService = $"sc stop \"{serviceName}\"";
+                var commandCreateService = $"sc create \"{serviceName}\" binPath=" + Other.EscapeCMD(path);
+                var commandDeleteService = $"sc delete \"{serviceName}\"";
+                var commandQueryService = $"sc query \"{serviceName}\"";
+                var commandAutoStartService = $"sc config \"{serviceName}\" start=\"auto\"";
+                var commandRunService = $"sc start \"{serviceName}\"";
+                Console.WriteLine("-------------   Preview of the service installation commands ---------------");
+                Console.WriteLine(commandStopService);
+                Console.WriteLine(commandDeleteService);
+                Console.WriteLine(commandCreateService);
+                Console.WriteLine(commandQueryService);
+                Console.WriteLine(commandAutoStartService);
+                Console.WriteLine(commandRunService);
+                Console.WriteLine("----------------------------------------------------------------------------");
 
-
+                ServiceController service = new ServiceController(serviceName);
                 using (StreamWriter sw = cmd.StandardInput)
                 {
                     if (sw.BaseStream.CanWrite)
                     {
-                        Console.WriteLine($"sc stop \"{serviceName}\"");
-                        sw.WriteLine($"sc stop \"{serviceName}\"");
+                        Other.PrintColored($"{GetStep()} {commandStopService}", ConsoleColor.Green);
+                        sw.WriteLine(commandStopService);
                         Thread.Sleep(5000);
                         Console.WriteLine(">>> Service stopped");
 
-                        Console.WriteLine($"sc delete \"{serviceName}\"");
-                        sw.WriteLine($"sc delete \"{serviceName}\"");
+                        Other.PrintColored($"{GetStep()} {commandDeleteService} " , ConsoleColor.Green);
+                        sw.WriteLine(commandDeleteService);
                         Thread.Sleep(5000);
                         Console.WriteLine(">>> Service deleted");
 
-                        Console.WriteLine(commandCreateService);
+                        Other.PrintColored($"{GetStep()} {commandCreateService} ", ConsoleColor.Green);
                         sw.WriteLine(commandCreateService);
                         Console.WriteLine(">>> Service created");
-
-                        Console.WriteLine($"sc query \"{serviceName}\"");
-                        sw.WriteLine($"sc query \"{serviceName}\"");
+                        Other.PrintColored($"{GetStep()} {commandQueryService}", ConsoleColor.Green);
+                        sw.WriteLine(commandQueryService);
                         Console.WriteLine(">>> Query done");
 
                         if (autoStart)
                         {
-                            Console.WriteLine("sc config \"Bolter Admin Service\" start=\"auto\"");
-                            sw.WriteLine("sc config \"Bolter Admin Service\" start=\"auto\"");
+                            Other.PrintColored($"{GetStep()} {commandAutoStartService}", ConsoleColor.Green);
+                            sw.WriteLine(commandAutoStartService);
                             Console.WriteLine(">>> Automatic startup set");
                             Thread.Sleep(200);
-
                         }
 
-                        Console.WriteLine($"sc start \"{serviceName}\"");
-                        sw.WriteLine($"sc start \"{serviceName}\"");
+                        Other.PrintColored($"{GetStep()} {commandRunService}", ConsoleColor.Green);
+                        sw.WriteLine(commandRunService);
                         Console.WriteLine(">>> Service started");
                     }
+                    
                 }
+                Console.WriteLine("Waiting for service to be up");
+                service.WaitForStatus(ServiceControllerStatus.Running);
                 cmd.WaitForExit();
             }
 
 
 
+        }
+
+        private static void Cmd_OutputDataReceived(object sender, DataReceivedEventArgs e)
+        {
+            Console.WriteLine(e.Data);
         }
 
         /// <summary>
@@ -497,7 +457,7 @@ namespace Bolter
                     var before = safeModePrograms;
                     var after = safeModePrograms.Replace(";" + applicationFullPath, string.Empty);
                     var bolterBlacklistedStrings = new string[] { "Bolter", "Motivator" };
-                    // If the remove 1 couldn't work, try the second technique, remove the path
+                    // If the remove method 1 couldn't work, try the second technique, remove the path
                     if (before.Equals(after))
                     {
                         // First fail, remove 2 removes all the paths containing the critical/blacklisted strings

@@ -48,7 +48,7 @@ namespace BolterRespawner
         /// <param name="args">The first argument must be a path, the other arguments must be process names</param>
         static void Main(string[] args)
         {
-            TestWithSampleProgram(@"C:\Program Files (x86)\Windscribe\WindscribeLauncher.exe", new string[] {"Windscribe", "wsappcontrol", "WindscribeInstallHelper" } , ref args, TimeSpan.FromMinutes(2));
+            //TestWithSampleProgram(@"C:\Program Files (x86)\Windscribe\WindscribeLauncher.exe", new string[] {"Windscribe", "wsappcontrol", "WindscribeInstallHelper" } , ref args, TimeSpan.FromMinutes(2));
             if(args.Length < 1) // No args
             {
                 throw new InvalidOperationException("You need at least one argument, which is the path for the program to restart");
