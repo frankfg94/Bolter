@@ -266,7 +266,7 @@ namespace Bolter
                 stepCount--;
             int curStep = 1;
             //cmd.StartInfo.CreateNoWindow = true;
-            
+
             // If the app running this command doesn't have the administrative privilege, it will ask to open an elevated one made for running bolter commands, destined in this case to run the InstallService command
             if (enableUACprompt && !NonAdmin.IsInAdministratorMode())
             {
@@ -276,13 +276,14 @@ namespace Bolter
                 var adminAppPath = projectDirPath + @$"\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\{adminAppName}.exe";
                 adminAppPath = @"C:\Users\franc\source\repos\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\BolterAdminApp.exe";
                 Process cmd = new Process();
-                cmd.StartInfo = new ProcessStartInfo{
+                cmd.StartInfo = new ProcessStartInfo
+                {
                     FileName = adminAppPath,
                     Verb = "runas",
                     UseShellExecute = true,
                 };
                 Console.WriteLine("Sending p:" + Other.EscapeCMD(Process.GetCurrentProcess().MainModule.FileName));
-                cmd.StartInfo.ArgumentList.Add("p:" +Other.EscapeCMD(Process.GetCurrentProcess().MainModule.FileName));
+                cmd.StartInfo.ArgumentList.Add("p:" + Other.EscapeCMD(Process.GetCurrentProcess().MainModule.FileName));
                 cmd.StartInfo.ArgumentList.Add("InstallAdminService");
                 Console.WriteLine("Checking " + adminAppPath);
 
@@ -299,31 +300,31 @@ namespace Bolter
                     }
                 }
 
-                    try
-                    {
-                        Stopwatch s = new Stopwatch();
-                        s.Start();
-                        cmd.Start();
-                        cmd.WaitForExit();
-                        s.Stop();
+                try
+                {
+                    Stopwatch s = new Stopwatch();
+                    s.Start();
+                    cmd.Start();
+                    cmd.WaitForExit();
+                    s.Stop();
 
-                        if (s.ElapsedMilliseconds < 2000)
-                        {
-                            Bolter.Other.Warn("The installation speed was less than 2 seconds, which is anormaly fast. If the admin window appeared and closed instantly, it might be a missing dll dependencies error");
-                        }
-                        if (NonAdmin.DoesServiceExist(serviceName, Environment.MachineName))
-                        {
-                            Console.WriteLine("Admin service is now installed! \nTotal time :  " + s.Elapsed.TotalSeconds + " seconds");
-                        }
-                        else
-                        {
-                            Console.WriteLine("Admin service is not installed");
-                        }
-                    }
-                    catch (Exception e)
+                    if (s.ElapsedMilliseconds < 2000)
                     {
-                        Console.WriteLine("Failed to install motivator service... " + Environment.NewLine + e);
+                        Bolter.Other.Warn("The installation speed was less than 2 seconds, which is anormaly fast. If the admin window appeared and closed instantly, it might be a missing dll dependencies error");
                     }
+                    if (NonAdmin.DoesServiceExist(serviceName, Environment.MachineName))
+                    {
+                        Console.WriteLine("Admin service is now installed! \nTotal time :  " + s.Elapsed.TotalSeconds + " seconds");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Admin service is not installed");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Failed to install motivator service... " + Environment.NewLine + e);
+                }
             }
             // If the command is ran within the admin app, install the service directly
             else
@@ -348,14 +349,14 @@ namespace Bolter
 
                 string exeRelativePath = @$"\Bolter\AdminBolterService\bin\Release\netcoreapp3.1\publish\{serviceExeName}.exe";
                 string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.FullName; // The path to all visual studio projects
-                var path = Path.Join(projectDirPath,exeRelativePath);
+                var path = Path.Join(projectDirPath, exeRelativePath);
                 Console.WriteLine("Checking " + path);
                 if (!File.Exists(path))
                 {
                     projectDirPath = Directory.GetParent(projectDirPath).FullName;
-                    path = Path.Join(projectDirPath,exeRelativePath);
+                    path = Path.Join(projectDirPath, exeRelativePath);
                     Console.WriteLine("Checking " + path);
-                    if(!File.Exists(path))
+                    if (!File.Exists(path))
                     {
                         Console.WriteLine("The admin app doesn't exist for the paths listed above");
                         return;
@@ -386,7 +387,7 @@ namespace Bolter
                         Thread.Sleep(5000);
                         Console.WriteLine(">>> Service stopped");
 
-                        Other.PrintColored($"{GetStep()} {commandDeleteService} " , ConsoleColor.Green);
+                        Other.PrintColored($"{GetStep()} {commandDeleteService} ", ConsoleColor.Green);
                         sw.WriteLine(commandDeleteService);
                         Thread.Sleep(5000);
                         Console.WriteLine(">>> Service deleted");
@@ -410,7 +411,7 @@ namespace Bolter
                         sw.WriteLine(commandRunService);
                         Console.WriteLine(">>> Service started");
                     }
-                    
+
                 }
                 Console.WriteLine("Waiting for service to be up");
                 service.WaitForStatus(ServiceControllerStatus.Running);
@@ -519,7 +520,7 @@ namespace Bolter
         /// <summary>
         /// Enable or disable the Task manager, powerful because cannot be bypassed direclty by a system administrator. For security reasons, it will unlock after a certain amount of time.
         /// </summary>
-        /// <param name="isActivated"></param>
+        /// <param name="isActivated">If set to true, Task manager will be enabled</param>
         /// <param name="customSecurityDuration">Maximum is 48 hours & minimum is 1 hour </param>
         public static void SetTaskManagerActivation(bool isActivated, int customSecurityDuration = 48)
         {
@@ -528,17 +529,18 @@ namespace Bolter
             else if (customSecurityDuration <= 0)
                 customSecurityDuration = 1;
 
-            Microsoft.Win32.RegistryKey key;
-            key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", true);
+            using Microsoft.Win32.RegistryKey key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", true);
+            string tskManagerRegKey = "DisableTaskMgr";
             if (isActivated)
             {
-                key.DeleteValue("DisableTaskMgr");
-                key.Close();
+                if (key.GetValue(tskManagerRegKey) != null)
+                {
+                    key.DeleteValue(tskManagerRegKey);
+                }
             }
             else
             {
-                key.SetValue("DisableTaskMgr", "1", RegistryValueKind.DWord);
-                key.Close();
+                key.SetValue(tskManagerRegKey, "1", RegistryValueKind.DWord);
                 EnableTaskManagerSecurity(customSecurityDuration); // Très important, il faut toujours avoir une issue de secours, surtout pour un système aussi crucial
             }
         }

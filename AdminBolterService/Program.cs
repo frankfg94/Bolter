@@ -6,6 +6,7 @@ namespace AdminBolterService
 {
     /// <summary>
     /// To publish the service, ensure that the service is deleted/not enabled first in services.msc
+    /// Don't forget to publish the service to update it. The service must be deleted to make the publishing works (a vs error will appear while publishing if not)
     /// </summary>
     public class Program
     {
