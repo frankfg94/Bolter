@@ -101,6 +101,11 @@ namespace Bolter
 
         }
 
+        public static void SetBatchAndCMDBlock(bool block)
+        {
+            SetBatchAndCMDBlock(block, Environment.UserName);
+        }
+
         private static void _SetBatchAndCMDBlock(bool block, string currentUsername)
         {
             var p = (Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "logBolterService.txt"));
@@ -274,7 +279,6 @@ namespace Bolter
 
                 string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.Parent.FullName; // The path to all visual studio projects
                 var adminAppPath = projectDirPath + @$"\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\{adminAppName}.exe";
-                adminAppPath = @"C:\Users\franc\source\repos\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\BolterAdminApp.exe";
                 Process cmd = new Process();
                 cmd.StartInfo = new ProcessStartInfo
                 {
@@ -430,76 +434,48 @@ namespace Bolter
         /// <summary>
         /// [SEMI-VALIDATED] Enable / Disable the app to start in safe mode
         /// The algorithm need testing, because if the regkey is badly set, it will create a black screen on the computer
+        /// If no <paramref name="applicationFullPath"/> is indicated, the path of the application using this library will be used
         /// </summary>
         ///  <remarks>	<i>This requires the app to be in administrator mode </i></remarks>
-        /// <param name="autoStartEnabled"></param>
-        /// <param name="applicationFullPath"></param>
-        public static void SetStartupSafeMode(bool autoStartEnabled, string applicationFullPath = "useThisApp")
+        /// <param name="autoStartEnabled">If set to true, the app will start even in windows safe mode</param>
+        /// <param name="applicationFullPath">the path of the app to edit the startup properties</param>
+        public static void SetStartupSafeMode(bool autoStartEnabled, string applicationFullPath = "")
         {
             // LocalMachine is needed, so we also need UAC auth
             var keyPath = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
+            var shellKey = "Shell";
             var key = Registry.LocalMachine.OpenSubKey(keyPath, true);
             if (key != null)
             {
-                if (applicationFullPath.Equals("useThisApp"))
+                if (applicationFullPath.Equals(""))
                 {
                     applicationFullPath = Process.GetCurrentProcess().MainModule.FileName;
                 }
-                string safeModePrograms = (string)key.GetValue("Shell");
+                string safeModePrograms = (string)key.GetValue(shellKey);
                 if (autoStartEnabled)
                 {
                     if (!safeModePrograms.Contains(applicationFullPath))
+                    {
                         // Append our app to the list of the apps
-                        key.SetValue("Shell", safeModePrograms + ";" + applicationFullPath);
+                        key.SetValue(shellKey, safeModePrograms + ";" + applicationFullPath);
+                    }
                 }
                 else
                 {
                     // Remove the app path without touching the other datas
-                    var before = safeModePrograms;
-                    var after = safeModePrograms.Replace(";" + applicationFullPath, string.Empty);
-                    var bolterBlacklistedStrings = new string[] { "Bolter", "Motivator" };
-                    // If the remove method 1 couldn't work, try the second technique, remove the path
-                    if (before.Equals(after))
-                    {
-                        // First fail, remove 2 removes all the paths containing the critical/blacklisted strings
-                        foreach (var path in safeModePrograms.Split(";"))
-                        {
-                            foreach (var blackListString in bolterBlacklistedStrings)
-                            {
-                                if (path.Contains(blackListString))
-                                {
-                                    after = safeModePrograms.Replace(";" + path, string.Empty);
-                                }
-                            }
-                        }
-                        // If the remove 2 failed 
-                        if (before.Equals(after))
-                        {
-                            Other.Warn("We couldn't remove the autostart precisely, instead we choose the reset the regedit command to 'explorer' ");
-                            key.SetValue("Shell", "explorer");
-                        }
-                        else
-                        {
-                            // Removal 2 success
-                            key.SetValue("Shell", after);
-                        }
-                    }
-                    else
-                    {
-                        // Removal 1 sucesss
-                        key.SetValue("Shell", after);
-                    }
-
+                    safeModePrograms = safeModePrograms.Replace(";" + applicationFullPath, string.Empty);
+                    safeModePrograms = safeModePrograms.Replace(applicationFullPath, string.Empty);
+                    key.SetValue(shellKey, safeModePrograms);
                 }
                 if (safeModePrograms.Last().Equals(';'))
                 {
                     // Remove the last comma
-                    key.SetValue("Shell", safeModePrograms.Substring(0, safeModePrograms.Length - 1));
+                    key.SetValue(shellKey, safeModePrograms.Substring(0, safeModePrograms.Length - 1));
                 }
             }
             else
             {
-                Console.WriteLine("Auto safe mode set failed : reg key not found");
+                throw new NullReferenceException($"Auto safe mode set failed : reg key '{shellKey}' not found");
             }
         }
 
@@ -510,10 +486,11 @@ namespace Bolter
         /// </summary>
         public static void HideStartupsAppsFromSettings(bool hide)
         {
+            string key = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer";
             if (hide)
-                Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer", true).SetValue("SettingsPageVisibility", "hide:startupapps", RegistryValueKind.String);
+                Registry.LocalMachine.OpenSubKey(key, true).SetValue("SettingsPageVisibility", "hide:startupapps", RegistryValueKind.String);
             else
-                Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\", true).DeleteValue("SettingsPageVisibility");
+                Registry.LocalMachine.OpenSubKey(key, true).DeleteValue("SettingsPageVisibility");
         }
 
 
@@ -596,16 +573,7 @@ namespace Bolter
             try
             {
                 Console.Write("\n0) Changing visibility of SettingsPageVisibility to 'Visible' in windows settings");
-                RegistryKey explorerKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\", true);
-                if (explorerKey.GetValueNames().Contains("Start"))
-                {
-                    explorerKey.DeleteValue("SettingsPageVisibility");
-                    Console.Write("     Success !");
-                }
-                else
-                {
-                    Console.Write("     Couldn't delete SettingsPageVisibility value");
-                }
+                Admin.HideStartupsAppsFromSettings(false);
 
             }
             catch (Exception) { }

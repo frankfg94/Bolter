@@ -47,7 +47,10 @@ namespace Bolter.BolterAdminApp
             private static object lockSendMsg = new object();
             private static object lockEnterTopic = new object();
 
-            public void doOperation()
+        /// <summary>
+        /// Handle a Bolter client, should be a localhost client to execute all commands on the same computer
+        /// </summary>
+        public void doOperation()
             {
                 while (run)
                 {
@@ -61,7 +64,6 @@ namespace Bolter.BolterAdminApp
                         }
                         else
                         {
-
                             string data = Net.RcvMsg(comm.GetStream());
                             if (data is string msg)
                             {
@@ -80,7 +82,7 @@ namespace Bolter.BolterAdminApp
                             Console.WriteLine("Invalid command format " + ex);
                             Console.WriteLine(ex.StackTrace);
                             Net.SendMsg(comm.GetStream(), "[SERVER] Invalid command format " + ex.Message);
-                            Net.SendMsg(comm.GetStream(), "[SERVER] Invalid command format " + ex.StackTrace);
+                            Net.SendMsg(comm.GetStream(), ex.StackTrace);
                             Console.WriteLine("--> Sent an invalid command format message to the client");
                         }
                     }

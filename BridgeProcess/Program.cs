@@ -18,6 +18,7 @@ namespace BridgeProcess
         static string uacAppPath = null;
         static bool quickTest = false; // if you test this program alone, it is normal that it will failed, because it will try to listen to a server
 
+        [Obsolete("Not used anymore & absolute path")]
         // TODO : Big problem exe doesn't start
         static void Main(string[] args)
         {

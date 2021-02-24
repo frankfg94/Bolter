@@ -18,6 +18,7 @@ using Timer = System.Timers.Timer;
 using Microsoft.CSharp;
 using System.CodeDom.Compiler;
 using System.ServiceProcess;
+using Bolter.BolterAdminApp;
 
 namespace Bolter
 {
@@ -144,6 +145,22 @@ namespace Bolter
 
         [DllImport("user32.dll")]
         private static extern IntPtr GetThreadDesktop(int dwThreadId);
+
+
+        public static void TryDisableAllPossibleRestrictions(string serviceName, string appPath, string ip, int port, string machineName)
+        {
+            NonAdmin.DisableAllNonAdminRestrictions();
+            if (NonAdmin.DoesServiceExist(serviceName, machineName))
+            {
+                ReceiverClient client = new ReceiverClient();
+                client.ConnectToBolterService(ip, port);
+                client.RequestDisableAllAdminRestrictions(appPath);
+            }
+            else
+            {
+                Console.WriteLine($"Could not disable admin restrictions : '{serviceName}' not found");
+            }
+        }
 
         [DllImport("kernel32.dll")]
         private static extern int GetCurrentThreadId();
@@ -332,12 +349,12 @@ namespace Bolter
             var prgm = new ProgramToClose(programName, startTime, endTime);
 
             // If we added the program, trigger the event
-            if ( programsToClose.Add(prgm) )
+            if (programsToClose.Add(prgm))
             {
                 OnAutoCloseProgramListChanged(new AutoCloseChangedArgs
                 {
                     ProgramAction = ProgramListAction.Added,
-                    programToClose = prgm 
+                    programToClose = prgm
                 });
             }
 
@@ -368,11 +385,11 @@ namespace Bolter
                 }
                 if (foldersToLock.Remove(folderToRemove))
                 {
-                        OnAutoLockFolderListChanged(new AutoLockChangedArgs
-                        {
-                            FolderAction = FolderListAction.Removed,
-                            folderToLock = folderToRemove
-                        });
+                    OnAutoLockFolderListChanged(new AutoLockChangedArgs
+                    {
+                        FolderAction = FolderListAction.Removed,
+                        folderToLock = folderToRemove
+                    });
                 }
             }
         }
@@ -404,13 +421,13 @@ namespace Bolter
                     prgmToClose = prgm;
                 }
             }
-            if(programsToClose.Remove(prgmToClose))
+            if (programsToClose.Remove(prgmToClose))
             {
-                    OnAutoCloseProgramListChanged(new AutoCloseChangedArgs
-                    {
-                        ProgramAction = ProgramListAction.Removed,
-                        programToClose = prgmToClose
-                    });
+                OnAutoCloseProgramListChanged(new AutoCloseChangedArgs
+                {
+                    ProgramAction = ProgramListAction.Removed,
+                    programToClose = prgmToClose
+                });
             }
         }
 
@@ -529,7 +546,7 @@ namespace Bolter
                 // First remove it from the autolock list if necessary
                 RemoveAutoLockFolder(folderPath);
                 // SetFileStreamAntiDelete(folderPath, false);
-                if(fileStreamsLockedPaths != null && fileStreamsLockedPaths.Contains(folderPath))
+                if (fileStreamsLockedPaths != null && fileStreamsLockedPaths.Contains(folderPath))
                 {
                     fileStreamsLockedPaths.Remove(folderPath);
                 }
@@ -594,9 +611,9 @@ namespace Bolter
                     UnlockFolder(folder.path);
                 }
                 Console.WriteLine("Unlocked " + NonAdmin.foldersToLock.Count + " folders");
-                if(disableAutoLocker)
+                if (disableAutoLocker)
                 {
-                    SetFolderAutoLocker(false,5000,false);
+                    SetFolderAutoLocker(false, 5000, false);
                 }
             }
             else
@@ -718,7 +735,7 @@ namespace Bolter
             // Unlocking the folder / file
             else
             {
-                if(fileStreamsLockedPaths != null)
+                if (fileStreamsLockedPaths != null)
                 {
                     if (fileStreamsLockedPaths.Contains(lockFilePath))
                     {
@@ -798,13 +815,13 @@ namespace Bolter
         {
             if (beginDate > endDate)
                 throw new InvalidOperationException($"We cannot have a start date {beginDate.ToLongTimeString()} - {beginDate.ToLongDateString()}" +
-                    $" superior to an end date {endDate.ToLongTimeString()} - {endDate.ToLongDateString()}"   );
+                    $" superior to an end date {endDate.ToLongTimeString()} - {endDate.ToLongDateString()}");
 
             if (foldersToLock == null)
                 foldersToLock = new HashSet<AutoLockFolder>();
 
             var folder = new AutoLockFolder(path, beginDate, endDate);
-            
+
             if (foldersToLock.Add(folder))
             {
                 OnAutoLockFolderListChanged(new AutoLockChangedArgs
@@ -817,7 +834,7 @@ namespace Bolter
             // Start the auto locker
             if (autoStartAutoLocker && (folderLockTimer == null || !folderLockTimer.Enabled))
             {
-                SetFolderAutoLocker(true, autoLockDelayMilliseconds,true);
+                SetFolderAutoLocker(true, autoLockDelayMilliseconds, true);
             }
         }
 
@@ -982,7 +999,7 @@ namespace Bolter
             {
                 foreach (ProcessThread pT in p.Threads)
                 {
-                    if(pT.ThreadState == System.Diagnostics.ThreadState.Wait)
+                    if (pT.ThreadState == System.Diagnostics.ThreadState.Wait)
                     {
                         IntPtr pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)pT.Id);
 
@@ -1064,7 +1081,7 @@ namespace Bolter
         public static void RenameProcess(string processName, string newName)
         {
             Process p = Process.GetProcessesByName(processName).FirstOrDefault();
-            if(p != null)
+            if (p != null)
             {
                 SetWindowText(p.MainWindowHandle, newName);
             }
@@ -1152,7 +1169,7 @@ namespace Bolter
 
         public static void ClearAllVirtualDesktops()
         {
-            if(VirtualDesktop.IsSupported)
+            if (VirtualDesktop.IsSupported)
             {
                 foreach (var desktop in VirtualDesktop.GetDesktops())
                 {
@@ -1236,12 +1253,12 @@ namespace Bolter
                 // Adding the exe path for the program to be respawned
                 p.StartInfo.ArgumentList.Add(Process.GetCurrentProcess().MainModule.FileName);
                 // Adding the processes linked to the exe path that tell the program not to be respawned
-                
-                if(verificatorProcesses == null)
+
+                if (verificatorProcesses == null)
                 {
                     verificatorProcesses = Array.Empty<string>();
                 }
-                
+
                 foreach (var path in verificatorProcesses)
                 {
                     p.StartInfo.ArgumentList.Add(path);
@@ -1250,7 +1267,7 @@ namespace Bolter
                 p.StartInfo.FileName = Environment.CurrentDirectory + @"Bolter\Resources\BolterRespawner.exe";
                 p.Start();
             }
-            else if(respawnerProcessId != -1)
+            else if (respawnerProcessId != -1)
             {
                 Process.GetProcessById(respawnerProcessId).Kill();
                 respawnerProcessId = -1;
@@ -1264,7 +1281,7 @@ namespace Bolter
 
         public static void ClearAutoClosePrograms()
         {
-            if(programsToClose != null )
+            if (programsToClose != null)
             {
                 programsToClose.Clear();
             }
@@ -1297,7 +1314,7 @@ namespace Bolter
             ClearAllVirtualDesktops();
             UnlockFolder(AppDomain.CurrentDomain.BaseDirectory);
             UnlockAllFolders();
-            MakeThisProgramRespawnable(false,null);
+            MakeThisProgramRespawnable(false, null);
             SetAltTabEnabled(true);
             Console.WriteLine("[BOLTER] Finished disabling Non Admin restrictions");
         }

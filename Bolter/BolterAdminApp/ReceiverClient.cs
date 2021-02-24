@@ -61,6 +61,12 @@ namespace Bolter.BolterAdminApp
     
 
         string keyboardCommand = "";
+        /// <summary>
+        /// Connect to the Bolter Windows Service using a Tcp connection. The Bolter Windows Service can run UAC commands (methods for the 'Admin' class) for the Bolter library.
+        /// This creates a bidirectionnal/duplex communication, where the client will send commands to the Bolter Service, but will also display the service's output & errors. 
+        /// </summary>
+        /// <param name="IP_SERVER_ADDRESS"></param>
+        /// <param name="PORT"></param>
         public void ConnectToBolterService(string IP_SERVER_ADDRESS, int PORT)
         {
             new Thread(() => {

@@ -64,12 +64,10 @@ namespace BolterAdminApp
 
         private static void ProcessStartHandling(string[] args)
         {
-
             if (args.Length < 1)
             {
                 throw new ArgumentNullException("No arguments. At least one argument is needed (the path of the app) prefixed with p:");
             }
-
             for (int i = 0; i < args.Length; i++)
             {
                 log.Debug("Scanning arg : " + args[i]);
