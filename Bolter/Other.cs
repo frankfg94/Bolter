@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Text;
 using System.Timers;
@@ -97,6 +99,54 @@ namespace Bolter
                 return false;
             }
             */
+        }
+
+        /// <summary>
+        /// Generate a process that will be started ran as administrator (if needed with a prompt dialog)
+        /// </summary>
+        /// <param name="processPath"></param>
+        /// <returns></returns>
+        public static Process GenerateAdminProcess(string processPath)
+        {
+            Process cmd = new Process();
+            cmd.StartInfo = new ProcessStartInfo // Run as UAC
+            {
+                FileName = processPath,
+                Verb = "runas",
+                UseShellExecute = true,
+            };
+            return cmd;
+        }
+        /// <summary>
+        /// Send commands to a Bolter CLI with admin privileges, used from <see cref="NonAdmin"/> to Run <see cref="Admin"/> commands
+        /// </summary>
+        /// <param name="commandName"></param>
+        /// <param name="adminAppPath"></param>
+        /// <param name="adminAppName"></param>
+        public static void SendCommandToAdminExecutor(string commandName, string adminAppPath, string adminAppName)
+        {
+            Console.WriteLine("===> Using Bolter Admin Command Executor");
+            Process cmd = GenerateAdminProcess(adminAppPath);
+            Console.WriteLine("Sending p:" + Other.EscapeCMD(Process.GetCurrentProcess().MainModule.FileName));
+            cmd.StartInfo.ArgumentList.Add("p:" + Other.EscapeCMD(Process.GetCurrentProcess().MainModule.FileName));
+            cmd.StartInfo.ArgumentList.Add(commandName);
+            Console.WriteLine("Checking " + adminAppPath);
+
+            if (!File.Exists(adminAppPath))
+            {
+                // If the file is not found for the first path, motivator will try getting the Admin app executable in the same folder of motivator console executable
+                adminAppPath = Path.Join(Directory.GetParent(System.Reflection.Assembly.GetEntryAssembly().Location).FullName, adminAppName + ".exe");
+                cmd.StartInfo.FileName = adminAppName;
+                Console.WriteLine("Checking " + adminAppPath);
+                if (!File.Exists(adminAppPath))
+                {
+                    Bolter.Other.Warn("[X] Failed to find the UAC service installer on all listed paths, service can't be started");
+                    return;
+                }
+            }
+
+            cmd.Start();
+            cmd.WaitForExit();
         }
     }
 }

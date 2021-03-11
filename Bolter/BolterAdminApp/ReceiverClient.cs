@@ -83,7 +83,6 @@ namespace Bolter.BolterAdminApp
                     var keyboardTemp = keyboardCommand;
                     // On reçoit quelque chose, comme par exemple un message
                     var msg = Net.RcvMsg(comm.GetStream());
-                    {
                         try
                         {
                             DoOperationClientSide(msg);
@@ -92,7 +91,6 @@ namespace Bolter.BolterAdminApp
                         {
                             Console.WriteLine("Error parsing & processing in client : " + ex);
                         }
-                    }
                 }
             }
 
@@ -220,6 +218,21 @@ namespace Bolter.BolterAdminApp
             o.Add("serviceExeName", new JValue(serviceExeName));
             o.Add("serviceName", new JValue(serviceName));
             SendMessage(o.ToString());
+        }
+
+        public void RequestStartService(string serviceName = "Bolter Admin Service", string adminAppName = "BolterAdminApp", bool enableUACprompt = true)
+        {
+            JObject o = new JObject();
+            o.Add("name", new JValue("StartService"));
+            o.Add("serviceName", new JValue(serviceName));
+            o.Add("adminAppName", new JValue(adminAppName));
+            o.Add("enableUACprompt", new JValue(enableUACprompt));
+            SendMessage(o.ToString());
+        }
+
+        public void WaitForServerResponse(int waitMilleseconds)
+        {
+            
         }
 
         // A bridge process is required to make ipc work with uac .... ( 3 processes : process executing the command - uac bridge process - uac process)

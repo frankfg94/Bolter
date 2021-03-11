@@ -23,7 +23,7 @@ namespace AdminBolterService
                     {
                         config.LogName = "Bolter Service";
                         config.SourceName = "Bolter Service Source";
-                    }) ;
+                    });
                 }).UseWindowsService(); // Set the maximum possible lifetime
     }
 }

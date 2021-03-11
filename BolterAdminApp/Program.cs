@@ -24,7 +24,7 @@ namespace BolterAdminApp
         static void Main(string[] args)
         {
 
-            System.AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException; ;
+            System.AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
             // Load log4net configuration
             var logRepository = LogManager.GetRepository(Assembly.GetEntryAssembly());
@@ -51,7 +51,6 @@ namespace BolterAdminApp
             {
                 log.Info("Operations finished, closing admin bolter app...");
             }
-
         }
 
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -138,6 +137,9 @@ namespace BolterAdminApp
                 case "installadminservice":
                 case "installservice":
                     Admin.InstallService();
+                    break;
+                case "startservice":
+                    Admin.StartService();
                     break;
                 default:
                     var msg = "Unknown command : " + commandName;

@@ -330,7 +330,6 @@ namespace Bolter
         internal static Timer closeProgramsTimer;
         internal static HashSet<ProgramToClose> programsToClose;
         internal static HashSet<AutoLockFolder> foldersToLock;
-        internal static HashSet<string> fileStreamsLockedPaths;
         /// <summary>
         /// Closes a program automatically between two periods of this day. The auto closer will be updated immediatly.
         /// </summary>
@@ -546,9 +545,9 @@ namespace Bolter
                 // First remove it from the autolock list if necessary
                 RemoveAutoLockFolder(folderPath);
                 // SetFileStreamAntiDelete(folderPath, false);
-                if (fileStreamsLockedPaths != null && fileStreamsLockedPaths.Contains(folderPath))
+                if (locks != null && locks.ContainsKey(folderPath))
                 {
-                    fileStreamsLockedPaths.Remove(folderPath);
+                    locks.Remove(folderPath);
                 }
                 DirectoryInfo dInfo = new DirectoryInfo(folderPath);
                 DirectorySecurity dSecurity = dInfo.GetAccessControl();
@@ -670,7 +669,7 @@ namespace Bolter
                 }
             }
         }
-
+        static Dictionary<string, FileStream> locks = new Dictionary<string, FileStream>();
         /// <summary>
         /// Prevent the deletion of folder or file for the given path to be deleted by indicating the message 'this file is being used by another process'. Works only while the calling application is alive. (the app that uses this function)
         /// </summary>
@@ -678,6 +677,7 @@ namespace Bolter
         /// <param name="lockWithFileStream"></param>
         private static void SetFileStreamAntiDelete(string path, bool lockWithFileStream)
         {
+            Console.WriteLine($"Starting filestream lock for {path}");
             string lockFilePath = null;
             string lockFileName = "\\lock.Bolter";
             // path is Folder
@@ -702,30 +702,15 @@ namespace Bolter
             // Locking the folder / file
             if (lockWithFileStream)
             {
-                if (fileStreamsLockedPaths == null)
+                if (locks == null)
                 {
-                    fileStreamsLockedPaths = new HashSet<string>();
+                    locks = new Dictionary<string, FileStream>();
                 }
-                if (!fileStreamsLockedPaths.Contains(lockFilePath))
+                if (!locks.ContainsKey(lockFilePath))
                 {
-                    fileStreamsLockedPaths.Add(lockFilePath);
-
-                    // TODO : custom thread class
-                    var t = new Thread(delegate ()
-                    {
-                        Console.WriteLine($"Started Filestream thread for {lockFilePath}");
-                        using (FileStream fs = File.Open(lockFilePath, FileMode.Open, FileAccess.Read, FileShare.None))
-                        {
-                            while (fileStreamsLockedPaths.Contains(lockFilePath))
-                            {
-                                // We keep the filestream alive
-                                Thread.Sleep(2000);
-                            };
-                        }
-                        Console.WriteLine("Closing filestream!");
-                    });
-                    // This thread will automatically stop if the while loop is stopped
-                    t.Start();
+                    var fs = new FileStream(lockFilePath, FileMode.Open);
+                    fs.Lock(0, 0);
+                    locks.Add(lockFilePath,fs);
                 }
                 else
                 {
@@ -735,12 +720,12 @@ namespace Bolter
             // Unlocking the folder / file
             else
             {
-                if (fileStreamsLockedPaths != null)
+                if (locks != null)
                 {
-                    if (fileStreamsLockedPaths.Contains(lockFilePath))
+                    if (locks.ContainsKey(lockFilePath))
                     {
                         Console.WriteLine($"Unlocking Filestream thread for {lockFilePath}");
-                        fileStreamsLockedPaths.Remove(lockFilePath);
+                        locks.Remove(lockFilePath);
                     }
                     else
                     {

@@ -121,14 +121,13 @@ namespace Bolter.BolterAdminApp
                 Net.SendMsg(comm.GetStream(),Properties.Resources.json_not_string);
                 return;
             }
-            // Doesn't work
             switch ((string)jsonObj.name)
             {
                 case "ping":
                 case "Ping":
                 case "hello":
                 case "Hello":
-                    Net.SendMsg(comm.GetStream(),"Hello i'm the service and it's working!");
+                    Net.SendMsg(comm.GetStream(),"pong");
                     break;
                 case "RequestImpersonation":
                     // SADLY, could not find a way to keep the privileges and be able to write to the registry. So this was the purpose of impersonation, to detect hkey current user & write disableCMD (that requires Elevated access)
@@ -168,6 +167,13 @@ namespace Bolter.BolterAdminApp
                     Admin.SetStartupSafeMode(
                         autoStartEnabled: (bool)jsonObj.autoStartEnabled,
                         applicationFullPath: (string)jsonObj.applicationFullPath);
+                    break;
+                case "StartService":
+                    Admin.StartService(
+                        serviceName: (string)jsonObj.serviceName,
+                        adminAppName:(string)jsonObj.adminAppName,
+                        enableUACprompt:(bool)jsonObj.enableUACprompt
+                        );
                     break;
                 case "InstallService":
                     Admin.InstallService(

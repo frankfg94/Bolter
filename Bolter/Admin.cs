@@ -63,6 +63,30 @@ namespace Bolter
             public int Attributes;
         }
 
+        public static void StartService(string serviceName = "Bolter Admin Service", string adminAppName = "BolterAdminApp", bool enableUACprompt = true)
+        {
+            if (enableUACprompt && !NonAdmin.IsInAdministratorMode())
+            {
+                // Technique : Use the admin app (UAC prompt)
+                string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.Parent.FullName; // The path to all visual studio projects
+                var adminAppPath = projectDirPath + @$"\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\{adminAppName}.exe";
+
+                try
+                {
+                    Other.SendCommandToAdminExecutor("StartService", adminAppPath, adminAppName);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Failed to install motivator service... " + Environment.NewLine + e);
+                }
+            } 
+            else
+            {
+                // If we are admin, simply start the service
+                new ServiceController(serviceName).Start();
+            }
+        }
+
         /// <summary>
         /// Block / Unblock both the batch (.bat) files and the CMD console. It doesn't require a restart from the computer and works immediatly
         /// </summary>
@@ -257,7 +281,7 @@ namespace Bolter
         /// <param name="serviceExeName">Name of the executable without the exe</param>
         /// <param name="adminAppName">Admin application name</param>
         /// <param name="autoStart">Enable auto starting of the service</param>
-        /// <param name="enableUACprompt">If set to true, the service can be installed with an UAC prompt</param>
+        /// <param name="enableUACprompt">If set to true, the service can be installed with an UAC prompt. If not, Bolter will try to use the admin command executor app</param>
         /// <param name="serviceName">The name of the service to reinstall/install for executing bolter commands</param>
         public static void InstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service",
             string adminAppName = "BolterAdminApp", bool autoStart = true, bool enableUACprompt = true)
@@ -279,38 +303,12 @@ namespace Bolter
 
                 string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.Parent.FullName; // The path to all visual studio projects
                 var adminAppPath = projectDirPath + @$"\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\{adminAppName}.exe";
-                Process cmd = new Process();
-                cmd.StartInfo = new ProcessStartInfo
-                {
-                    FileName = adminAppPath,
-                    Verb = "runas",
-                    UseShellExecute = true,
-                };
-                Console.WriteLine("Sending p:" + Other.EscapeCMD(Process.GetCurrentProcess().MainModule.FileName));
-                cmd.StartInfo.ArgumentList.Add("p:" + Other.EscapeCMD(Process.GetCurrentProcess().MainModule.FileName));
-                cmd.StartInfo.ArgumentList.Add("InstallAdminService");
-                Console.WriteLine("Checking " + adminAppPath);
-
-                if (!File.Exists(adminAppPath))
-                {
-                    // If the file is not found for the first path, motivator will try getting the Admin app executable in the same folder of motivator console executable
-                    adminAppPath = Path.Join(Directory.GetParent(System.Reflection.Assembly.GetEntryAssembly().Location).FullName, adminAppName + ".exe");
-                    cmd.StartInfo.FileName = adminAppName;
-                    Console.WriteLine("Checking " + adminAppPath);
-                    if (!File.Exists(adminAppPath))
-                    {
-                        Bolter.Other.Warn("[X] Failed to find the UAC service installer on all listed paths, service can't be installed");
-                        return;
-                    }
-                }
-
+                Stopwatch s = new Stopwatch();
+                s.Start();
+                Other.SendCommandToAdminExecutor("InstallService", adminAppPath, adminAppName);
+                s.Stop();
                 try
                 {
-                    Stopwatch s = new Stopwatch();
-                    s.Start();
-                    cmd.Start();
-                    cmd.WaitForExit();
-                    s.Stop();
 
                     if (s.ElapsedMilliseconds < 2000)
                     {
@@ -432,7 +430,7 @@ namespace Bolter
         }
 
         /// <summary>
-        /// [SEMI-VALIDATED] Enable / Disable the app to start in safe mode
+        /// [INVALID] Enable / Disable the app to start in safe mode
         /// The algorithm need testing, because if the regkey is badly set, it will create a black screen on the computer
         /// If no <paramref name="applicationFullPath"/> is indicated, the path of the application using this library will be used
         /// </summary>
@@ -463,7 +461,7 @@ namespace Bolter
                 else
                 {
                     // Remove the app path without touching the other datas
-                    safeModePrograms = safeModePrograms.Replace(";" + applicationFullPath, string.Empty);
+                    safeModePrograms = safeModePrograms.Replace(";" + applicationFullPath, string.Empty); // Motivator at the end, or between two paths
                     safeModePrograms = safeModePrograms.Replace(applicationFullPath, string.Empty);
                     key.SetValue(shellKey, safeModePrograms);
                 }
@@ -471,6 +469,16 @@ namespace Bolter
                 {
                     // Remove the last comma
                     key.SetValue(shellKey, safeModePrograms.Substring(0, safeModePrograms.Length - 1));
+                }
+                if (safeModePrograms.Contains(";"))
+                {
+                    foreach (var p in safeModePrograms.Split(";").ToList())
+                    {
+                            if(!File.Exists(p))
+                            {
+                                throw new InvalidDataException($"Invalid program path {p} found in regedit {shellKey}, you should repair this error as soon as possible");
+                            }
+                    }
                 }
             }
             else
@@ -559,16 +567,6 @@ namespace Bolter
             Console.WriteLine("[UNBLOCKER Admins] We chose to unlock the computer with administrator commands");
             Console.WriteLine(">> Unlocking Task manager");
             SetTaskManagerActivation(true);
-
-
-            if (foldersPathToUnlock == null)
-            {
-                NonAdmin.UnlockAllFolders();
-            }
-            else
-            {
-                NonAdmin.UnlockFolders(foldersPathToUnlock);
-            }
 
             try
             {
