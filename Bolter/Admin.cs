@@ -439,7 +439,13 @@ namespace Bolter
         /// <param name="applicationFullPath">the path of the app to edit the startup properties</param>
         public static void SetStartupSafeMode(bool autoStartEnabled, string applicationFullPath = "")
         {
+            // WAY TOO DANGEROUS ATM
+
+
             // LocalMachine is needed, so we also need UAC auth
+            /**
+             * 
+            
             var keyPath = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
             var shellKey = "Shell";
             var key = Registry.LocalMachine.OpenSubKey(keyPath, true);
@@ -485,6 +491,7 @@ namespace Bolter
             {
                 throw new NullReferenceException($"Auto safe mode set failed : reg key '{shellKey}' not found");
             }
+             */
         }
 
 

@@ -1072,7 +1072,7 @@ namespace Bolter
             }
             else
             {
-                Console.WriteLine($"Couldn't rename process {processName} to {newName}");
+                Console.WriteLine($" Couldn't rename process {processName} to {newName}");
             }
         }
         public static void RenameProcess(Process p, string newName)
