@@ -15,6 +15,7 @@ namespace BolterAdminApp
         static string appUsingBolterPath = "unknown";
         private const string LOG_4_NET_FILE = "log4net.config";
         private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// This app must be run with administratives privileges because its purpose is to run Bolter.Admin static methods. <br/>
         /// Its main purpose is to install the bolter admin service (to avoid running the UAC prompt in the used apps) to do this, we can use <see cref="Admin.InstallService(string, string, string, bool, bool)"/><br/>
