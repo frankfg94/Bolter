@@ -2,10 +2,7 @@ using Bolter;
 using Bolter.BolterAdminApp;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
@@ -27,7 +24,7 @@ namespace AdminBolterService
     public class Worker : BackgroundService
     {
         private readonly ILogger<Worker> _logger;
-        private static string appUsingBolterPath;
+        private static readonly string appUsingBolterPath;
         private static NamedPipeClientStream client;
 
         public Worker(ILogger<Worker> logger)
@@ -35,16 +32,16 @@ namespace AdminBolterService
             _logger = logger;
         }
 
-        bool tcpEnabled = true;
+        readonly bool tcpEnabled = true;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             Trace.WriteLine("Entering start client");
-            if(tcpEnabled)
+            if (tcpEnabled)
             {
                 var server = new TcpServer();
                 server.Start(new IPAddress(new byte[] { 127, 0, 0, 1 }), 8976);
-            } 
+            }
             else
             {
                 StartServerIpc();

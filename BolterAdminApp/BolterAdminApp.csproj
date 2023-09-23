@@ -15,8 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="log4net" Version="2.0.12" />
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="8.18.0.27296">
+    <PackageReference Include="log4net" Version="2.0.15" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="9.10.0.77988">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -31,13 +31,10 @@
     <ProjectReference Include="..\Bolter\Bolter.csproj" />
   </ItemGroup>
 
+
   <ItemGroup>
     <None Update="log4net.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="exit 0&#xD;&#xA;echo &quot;copying $(OutDir)BolterAdminApp.exe to Bolter Resources folder&quot;&#xD;&#xA;copy &quot;$(OutDir)BolterAdminApp.exe&quot; &quot;$(SolutionDir)Bolter\Resources&quot;&#xD;&#xA;echo &quot;copying $(OutDir)BolterAdminApp.dll to Bolter Resources folder&quot;&#xD;&#xA;copy &quot;$(OutDir)BolterAdminApp.dll&quot; &quot;$(SolutionDir)Bolter\Resources&quot;&#xD;&#xA;copy &quot;$(OutDir)BolterAdminApp.runtimeconfig.json&quot; &quot;$(SolutionDir)Bolter\Resources&quot;&#xD;&#xA;" />
-  </Target>
 </Project>

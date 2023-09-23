@@ -96,6 +96,26 @@ namespace Bolter
             };
             return cmd;
         }
+
+        /// <summary>
+        /// Returns the path of an Exe to search in a folder
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <param name="folderToSearchRecursively"></param>
+        /// <returns></returns>
+        public static string searchForExe(string fileName, string folderToSearchRecursively)
+        {
+            if (!fileName.EndsWith(".exe")) fileName = fileName + ".exe";
+            foreach (string file in Directory.GetFiles(folderToSearchRecursively, "*.exe", SearchOption.AllDirectories))
+            {
+                Console.WriteLine(file);
+                if (Path.GetFileName(file).Equals(fileName))
+                {
+                    return file;
+                }
+            }
+            return null;
+        }
         /// <summary>
         /// Send commands to a Bolter CLI with admin privileges, used from <see cref="NonAdmin"/> to Run <see cref="Admin"/> commands
         /// </summary>
@@ -123,7 +143,7 @@ namespace Bolter
                     return;
                 }
             }
-
+            Console.WriteLine("Opening UAC authorized window for Installing Service");
             cmd.Start();
             cmd.WaitForExit();
         }

@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace Bolter
 {
-    internal class Globals
+    public class Globals
     {
         public const string ENVIRONMENT_VARIABLE_MOTIVATOR_FOLDER_PATH = "MotivatorFolderPath";
         public static string MOTIVATOR_FOLDER_PATH = Environment.GetEnvironmentVariable(ENVIRONMENT_VARIABLE_MOTIVATOR_FOLDER_PATH);
@@ -29,5 +29,7 @@ namespace Bolter
                 throw new ArgumentNullException("The path indicated is invalid for the main motivator folder : " + MOTIVATOR_FOLDER_PATH);
             }
         }
+
+
     }
 }

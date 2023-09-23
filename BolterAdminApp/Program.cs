@@ -1,11 +1,9 @@
 ﻿using Bolter;
+using log4net;
+using log4net.Config;
 using System;
 using System.IO;
 using System.Linq;
-using log4net;
-using log4net.Config;
-using System.ServiceProcess;
-using System.Threading;
 using System.Reflection;
 
 namespace BolterAdminApp
@@ -24,17 +22,16 @@ namespace BolterAdminApp
         /// <param name="args"></param>
         static void Main(string[] args)
         {
-
             System.AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
             // Load log4net configuration
             var logRepository = LogManager.GetRepository(Assembly.GetEntryAssembly());
             XmlConfigurator.Configure(logRepository, new FileInfo(LOG_4_NET_FILE));
-            log.Debug("Started app with args : (\n" + string.Join("\n\t",args) + "\n)");
+            log.Debug("Started app with args : (\n" + string.Join("\n\t", args) + "\n)");
 
 
             Console.WriteLine("---------------------------------");
-            Console.WriteLine("| Bolter admin command executor  |");
+            Console.WriteLine("| Bolter admin command executor   |");
             Console.WriteLine("---------------------------------");
             try
             {
@@ -76,6 +73,7 @@ namespace BolterAdminApp
                     {
                         // Store the path as the first param
                         appUsingBolterPath = Other.UnescapeCMD(args[0].Split(":").Last());
+                        log.Info("path of Motivator registered succesfully, waiting for commands");
                     }
                     else
                     {
@@ -87,7 +85,7 @@ namespace BolterAdminApp
                 {
                     if (args[i].Contains("unblock"))
                     {
-                        Bolter.Admin.DisableAllPossibleRestrictions(appUsingBolterPath);
+                        Admin.DisableAllPossibleRestrictions(appUsingBolterPath);
                         log.Info("Unblocked everything successfully, exiting");
                         return;
                     }
@@ -103,7 +101,7 @@ namespace BolterAdminApp
         private static void ExecuteUACCommand(string commandName)
         {
             log.Info("Trying to execute command : " + commandName);
-            switch(commandName.ToLower())
+            switch (commandName.ToLower())
             {
                 case "installadminservice":
                 case "installservice":

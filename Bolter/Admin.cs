@@ -257,6 +257,7 @@ namespace Bolter
         public static void InstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service",
             string adminAppName = "BolterAdminApp", bool autoStart = true, bool enableUACprompt = true)
         {
+            Console.WriteLine("InstallService");
             Globals.CheckDependencies();
             if (NonAdmin.DoesServiceExist(serviceName, Environment.MachineName))
             {
@@ -270,13 +271,13 @@ namespace Bolter
             // If the app running this command doesn't have the administrative privilege, it will ask to open an elevated one made for running bolter commands, destined in this case to run the InstallService command
             if (enableUACprompt && !NonAdmin.IsInAdministratorMode())
             {
-                Console.WriteLine(">> Service to install : " + serviceName);
+                Console.WriteLine(">> Service to install : " + adminAppName);
                 string adminAppPath = @$"{Globals.AdminAppParentFolder}\{adminAppName}.exe";
                 if(!File.Exists(adminAppPath))
                 {
                     Console.WriteLine("Exe not found here, searching " + adminAppName + " in path : " +  Globals.MOTIVATOR_FOLDER_PATH);
-                    adminAppPath = Globals.MOTIVATOR_FOLDER_PATH;
-
+                    adminAppPath = Other.searchForExe(adminAppName, Globals.MOTIVATOR_FOLDER_PATH);
+                        
                     // TODO recursive search for BolterAdminApp
                 }
                 Console.WriteLine(">> Installation location: " + adminAppPath);
@@ -325,7 +326,7 @@ namespace Bolter
                     return $"[STEP {curStep++}/{stepCount}]";
                 };
 
-                string serviceAppPath = $"{Globals.AdminAppParentFolder}/{serviceExeName}.exe";
+                string serviceAppPath = Other.searchForExe(serviceExeName, Globals.MOTIVATOR_FOLDER_PATH);
                 Console.WriteLine("Installing service on : " + serviceAppPath);
                 if (!File.Exists(serviceAppPath))
                 {
@@ -559,8 +560,11 @@ namespace Bolter
             Admin.SetBatchAndCMDBlock(false, username: "franc");
             Console.Write("     Success !");
 
-            Console.Write("\n3) Disabling the software autostart on safe mode...");
-            SetStartupSafeMode(false, appPath);
+            if(appPath != null && File.Exists(appPath))
+            {
+                Console.Write("\n3) Disabling the software autostart on safe mode...");
+                SetStartupSafeMode(false, appPath);
+            }
 
             Console.Write("\n4) Re activating date editing (using ntrights.exe)...");
             // PreventDateEditingW10(false); // DISABLED at the moment because with remoting, console is blocked (command process doesn't start?)
