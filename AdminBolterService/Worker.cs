@@ -49,23 +49,6 @@ namespace AdminBolterService
             {
                 StartServerIpc();
             }
-            /*
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-                await Task.Delay(1000, stoppingToken);
-            }
-            */
-        }
-
-
-        /// <summary>
-        /// NOT USED AT THE MOMENT, ONLY FOR NAMED PIPES, for tcp, just instanciate the server and run it
-        /// </summary>
-        /// <param name="jsonStr"></param>
-        private static void ExecuteUACCommandPipes(string jsonStr)
-        {
-          // TODO : complete
         }
 
 
@@ -109,10 +92,6 @@ namespace AdminBolterService
                         {
                             Admin.DisableAllPossibleRestrictions(appUsingBolterPath);
                             Trace.WriteLine("Unblocked everything successfully");
-                        }
-                        else
-                        {
-                            ExecuteUACCommandPipes(serverMsg);
                         }
                     }
                 }

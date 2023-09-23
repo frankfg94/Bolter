@@ -39,7 +39,6 @@ namespace BolterAdminApp
             try
             {
                 ProcessStartHandling(args); // First feature, execute all commands passed directly into the app
-                StartIPCClient(); // Second feature, create a server to keep the listener active (not needed bc of the service)
             }
             catch (Exception e)
             {
@@ -98,35 +97,6 @@ namespace BolterAdminApp
                     }
                 }
             }
-        }
-
-
-        private static void StartIPCClient()
-        {
-            //      var client = new NamedPipeClientStream("PipesOfPiece");
-            //      client.Connect(10000);
-            //       new Thread(() =>
-            //       {
-            //            StreamReader reader = new StreamReader(client);
-            //            while (true)
-            //             {
-            //                 if (!reader.EndOfStream)
-            //                  {
-            //                      var serverMsg = reader.ReadLine();
-            //                      Console.WriteLine("received: " + serverMsg);
-            //                      if (serverMsg.Contains("unblock"))
-            {
-                //                       Admin.DisableAllPossibleRestrictions(appUsingBolterPath);
-                //                        Console.WriteLine("Unblocked everything successfully");
-            }
-            //                  else
-            {
-                //                      ExecuteUACCommand(serverMsg);
-            }
-            //                    }
-            //                }
-            //            }).Start();
-            //           Thread.Sleep(200);
         }
 
 

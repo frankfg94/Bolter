@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Permissions;
 using System.Security.Principal;
@@ -22,6 +21,7 @@ namespace Bolter
     /// </summary>
     public static class Admin
     {
+
         /// <summary>
         /// Access token for impersonation
         /// </summary>
@@ -68,9 +68,7 @@ namespace Bolter
             if (enableUACprompt && !NonAdmin.IsInAdministratorMode())
             {
                 // Technique : Use the admin app (UAC prompt)
-                string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.Parent.FullName; // The path to all visual studio projects
-                var adminAppPath = projectDirPath + @$"\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\{adminAppName}.exe";
-
+                string adminAppPath = Globals.AdminAppParentFolder + '\\' + adminAppName;
                 try
                 {
                     Other.SendCommandToAdminExecutor("StartService", adminAppPath, adminAppName);
@@ -79,7 +77,7 @@ namespace Bolter
                 {
                     Console.WriteLine("Failed to install motivator service... " + Environment.NewLine + e);
                 }
-            } 
+            }
             else
             {
                 // If we are admin, simply start the service
@@ -94,33 +92,6 @@ namespace Bolter
         /// <param name="block"></param>
         public static void SetBatchAndCMDBlock(bool block, string username)
         {
-            /*
-            string currentUsername = "";
-            if(phToken != null)
-            {
-                Console.WriteLine("Before impersonation username : " + WindowsIdentity.GetCurrent().Name);
-                if(adminToken == null)
-                {
-                    var handle = phToken.DangerousGetHandle();
-                    adminToken = GetAdminToken(ref handle);
-                }
-                Console.WriteLine("Token :" + adminToken.ToInt64());
-                WindowsIdentity.RunImpersonated(
-                new SafeAccessTokenHandle(adminToken),
-                // User action
-                () =>
-                {
-                    // Check the identity.
-                    currentUsername = Environment.UserName;
-                    Console.WriteLine("During impersonation username : " + WindowsIdentity.GetCurrent().Name);
-                }
-                );
-            }
-            else
-            {
-                _SetBatchAndCMDBlock(block);
-            }
-            */
             _SetBatchAndCMDBlock(block, username);
 
         }
@@ -178,10 +149,10 @@ namespace Bolter
         {
             try
             {
-                System.Diagnostics.Process process = new System.Diagnostics.Process();
-                System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
+                Process process = new Process();
+                ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
                 process.StartInfo.UseShellExecute = false;
-                startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+                startInfo.WindowStyle = ProcessWindowStyle.Hidden;
                 startInfo.FileName = "cmd.exe";
                 startInfo.Verb = "runas";
                 startInfo.WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
@@ -196,7 +167,7 @@ namespace Bolter
                     process.StartInfo = startInfo;
                     process.StartInfo.UseShellExecute = false;
                     process.StartInfo.RedirectStandardOutput = true;
-                    System.Diagnostics.Process p2 = process;
+                    Process p2 = process;
                     process.Start();
                     strOutput = process.StandardOutput.ReadToEnd();
                     process.WaitForExit();
@@ -237,7 +208,7 @@ namespace Bolter
         [RequireAdministrator]
         public static void UninstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service")
         {
-            System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+            System.Diagnostics.Process cmd = new Process();
             cmd.StartInfo.FileName = "cmd.exe";
             cmd.StartInfo.RedirectStandardInput = true;
             cmd.StartInfo.RedirectStandardOutput = true;
@@ -286,6 +257,7 @@ namespace Bolter
         public static void InstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service",
             string adminAppName = "BolterAdminApp", bool autoStart = true, bool enableUACprompt = true)
         {
+            Globals.CheckDependencies();
             if (NonAdmin.DoesServiceExist(serviceName, Environment.MachineName))
             {
                 Console.WriteLine("[Note] Admin service is already installed, it will be reinstalled now");
@@ -294,22 +266,26 @@ namespace Bolter
             if (!autoStart)
                 stepCount--;
             int curStep = 1;
-            //cmd.StartInfo.CreateNoWindow = true;
 
             // If the app running this command doesn't have the administrative privilege, it will ask to open an elevated one made for running bolter commands, destined in this case to run the InstallService command
             if (enableUACprompt && !NonAdmin.IsInAdministratorMode())
             {
-                Console.WriteLine("Service to install : " + serviceName);
+                Console.WriteLine(">> Service to install : " + serviceName);
+                string adminAppPath = @$"{Globals.AdminAppParentFolder}\{adminAppName}.exe";
+                if(!File.Exists(adminAppPath))
+                {
+                    Console.WriteLine("Exe not found here, searching " + adminAppName + " in path : " +  Globals.MOTIVATOR_FOLDER_PATH);
+                    adminAppPath = Globals.MOTIVATOR_FOLDER_PATH;
 
-                string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.Parent.FullName; // The path to all visual studio projects
-                var adminAppPath = projectDirPath + @$"\Bolter\BolterAdminApp\bin\Debug\netcoreapp3.1\{adminAppName}.exe";
+                    // TODO recursive search for BolterAdminApp
+                }
+                Console.WriteLine(">> Installation location: " + adminAppPath);
                 Stopwatch s = new Stopwatch();
                 s.Start();
                 Other.SendCommandToAdminExecutor("InstallService", adminAppPath, adminAppName);
                 s.Stop();
                 try
                 {
-
                     if (s.ElapsedMilliseconds < 2000)
                     {
                         Bolter.Other.Warn("The installation speed was less than 2 seconds, which is anormaly fast. If the admin window appeared and closed instantly, it might be a missing dll dependencies error");
@@ -331,7 +307,7 @@ namespace Bolter
             // If the command is ran within the admin app, install the service directly
             else
             {
-                System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+                Process cmd = new Process();
                 cmd.StartInfo.FileName = "cmd.exe";
                 cmd.StartInfo.RedirectStandardInput = true;
                 cmd.StartInfo.RedirectStandardOutput = true;
@@ -349,23 +325,15 @@ namespace Bolter
                     return $"[STEP {curStep++}/{stepCount}]";
                 };
 
-                string exeRelativePath = @$"\Bolter\AdminBolterService\bin\Release\netcoreapp3.1\publish\{serviceExeName}.exe";
-                string projectDirPath = Directory.GetParent(System.IO.Directory.GetCurrentDirectory()).Parent.Parent.Parent.Parent.FullName; // The path to all visual studio projects
-                var path = Path.Join(projectDirPath, exeRelativePath);
-                Console.WriteLine("Checking " + path);
-                if (!File.Exists(path))
+                string serviceAppPath = $"{Globals.AdminAppParentFolder}/{serviceExeName}.exe";
+                Console.WriteLine("Installing service on : " + serviceAppPath);
+                if (!File.Exists(serviceAppPath))
                 {
-                    projectDirPath = Directory.GetParent(projectDirPath).FullName;
-                    path = Path.Join(projectDirPath, exeRelativePath);
-                    Console.WriteLine("Checking " + path);
-                    if (!File.Exists(path))
-                    {
-                        Console.WriteLine("The admin app doesn't exist for the paths listed above");
-                        return;
-                    }
+                    Console.WriteLine("The admin app doesn't exist for the paths listed above, ensure that you created the .exe of the service on these paths");
+                    return;
                 }
                 var commandStopService = $"sc stop \"{serviceName}\"";
-                var commandCreateService = $"sc create \"{serviceName}\" binPath=" + Other.EscapeCMD(path);
+                var commandCreateService = $"sc create \"{serviceName}\" binPath=" + Other.EscapeCMD(serviceAppPath);
                 var commandDeleteService = $"sc delete \"{serviceName}\"";
                 var commandQueryService = $"sc query \"{serviceName}\"";
                 var commandAutoStartService = $"sc config \"{serviceName}\" start=\"auto\"";

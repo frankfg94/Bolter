@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Net;
-using System.Text;
-using System.Timers;
 
 namespace Bolter
 {
@@ -42,14 +38,14 @@ namespace Bolter
         public static string EscapeCMD(string cmdPath)
         {
             return "\"" + cmdPath + "\"";
-        } 
+        }
 
         /// <summary>
         /// Remove double quotes around a string.
         /// </summary>
         public static string UnescapeCMD(string cmdPath)
         {
-            if(cmdPath.StartsWith("\"") && cmdPath.EndsWith("\""))
+            if (cmdPath.StartsWith("\"") && cmdPath.EndsWith("\""))
             {
                 return cmdPath.Substring(cmdPath[1], cmdPath[cmdPath.Length - 2]);
             }
@@ -82,23 +78,6 @@ namespace Bolter
         public static bool UrlAddressIsExisting(string url)
         {
             return Uri.IsWellFormedUriString(url, UriKind.Absolute);
-            /*
-            if (string.IsNullOrWhiteSpace(url))
-                return false;
-            try
-            {
-                HttpWebRequest request = WebRequest.Create(url) as HttpWebRequest;
-                request.Method = "HEAD";
-                HttpWebResponse response = request.GetResponse() as HttpWebResponse;
-                response.Close();
-                return (response.StatusCode == HttpStatusCode.OK);
-            }
-            catch
-            {
-                //Any exception will returns false.
-                return false;
-            }
-            */
         }
 
         /// <summary>
