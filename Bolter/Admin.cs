@@ -472,9 +472,14 @@ namespace Bolter
         {
             string key = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer";
             if (hide)
+            {
                 Registry.LocalMachine.OpenSubKey(key, true).SetValue("SettingsPageVisibility", "hide:startupapps", RegistryValueKind.String);
+            }
             else
+            {
                 Registry.LocalMachine.OpenSubKey(key, true).DeleteValue("SettingsPageVisibility");
+            }
+            Registry.LocalMachine.Close();
         }
 
 

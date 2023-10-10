@@ -54,7 +54,6 @@ namespace Bolter
         /// <param name="message"></param>
         public static void Warn(string message)
         {
-            var oldColor = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine(Value);
             Console.WriteLine(message);

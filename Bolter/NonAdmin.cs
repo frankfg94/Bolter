@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿using Bolter.BolterAdminApp;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -8,17 +9,11 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
-using System.Threading;
-using System.Timers;
-using System.Windows;
-using System.Windows.Documents;
-using WindowsDesktop;
 using System.Security.Principal;
-using Timer = System.Timers.Timer;
-using Microsoft.CSharp;
-using System.CodeDom.Compiler;
 using System.ServiceProcess;
-using Bolter.BolterAdminApp;
+using System.Threading;
+using WindowsDesktop;
+using Timer = System.Timers.Timer;
 
 namespace Bolter
 {
@@ -230,36 +225,7 @@ namespace Bolter
             Removed = 1
         }
 
-        public class AutoLockChangedArgs : EventArgs
-        {
-            public FolderListAction FolderAction { get; set; }
-            public AutoLockFolder folderToLock;
-        }
 
-        public class AutoCloseChangedArgs : EventArgs
-        {
-            public ProgramListAction ProgramAction { get; set; }
-            public ProgramToClose programToClose;
-        }
-
-        /// <summary>
-        /// Triggered when a folder is added or removed in the collection <see cref="foldersToLock"/> 
-        /// </summary>
-        public static event EventHandler<AutoLockChangedArgs> AutoLockFolderListChanged;
-        /// <summary>
-        /// Triggered when a program is added or removed in the collection <see cref="programsToClose"/> 
-        /// </summary>
-        public static event EventHandler<AutoCloseChangedArgs> AutoCloseProgramListChanged;
-
-        public static void OnAutoLockFolderListChanged(AutoLockChangedArgs args)
-        {
-            AutoLockFolderListChanged?.Invoke(foldersToLock, args);
-        }
-
-        public static void OnAutoCloseProgramListChanged(AutoCloseChangedArgs args)
-        {
-            AutoCloseProgramListChanged?.Invoke(programsToClose, args);
-        }
         #endregion
 
         /// <summary>
@@ -286,8 +252,9 @@ namespace Bolter
         /// <param name="programName"></param>
         public static void CloseProgram(string programName)
         {
+            if (programName == null) return;
             // TODO : optimize if mediocre perf (88% of the profiler)
-            foreach (var process in Process.GetProcessesByName(programName))
+            foreach (var process in Process.GetProcessesByName(programName.Split(".exe")[0]))
             {
                 process.Kill();
             }
@@ -324,301 +291,6 @@ namespace Bolter
                 }
             }
             return CallNextHookEx(ptrHook, nCode, wp, lp);
-        }
-
-        // Timer that closes the programs from the programsToClose List
-        internal static Timer closeProgramsTimer;
-        internal static HashSet<ProgramToClose> programsToClose;
-        internal static HashSet<AutoLockFolder> foldersToLock;
-        /// <summary>
-        /// Closes a program automatically between two periods of this day. The auto closer will be updated immediatly.
-        /// </summary>
-        /// <param name="programName"></param>
-        /// <param name="startDate">Date from which the program will be automatically closed</param>
-        /// <param name="endDate">Date from which the program will stop being automatically closed </param>
-        /// <param name="autoStartAutoCloser">If this is set to false, you will also have to call SetProgramAutoCloser to true to start the program closer</param>
-        public static void AddAutoCloseProgram(string programName, TimeSpan startTime, TimeSpan endTime, bool autoStartAutoCloser = true)
-        {
-            if (startTime > endTime)
-                throw new InvalidOperationException($"We cannot have a start time {startTime} superior to an end time {endTime}");
-
-            if (programsToClose == null)
-                programsToClose = new HashSet<ProgramToClose>();
-
-            var prgm = new ProgramToClose(programName, startTime, endTime);
-
-            // If we added the program, trigger the event
-            if (programsToClose.Add(prgm))
-            {
-                OnAutoCloseProgramListChanged(new AutoCloseChangedArgs
-                {
-                    ProgramAction = ProgramListAction.Added,
-                    programToClose = prgm
-                });
-            }
-
-            // Start the auto closer
-            if (autoStartAutoCloser && (closeProgramsTimer == null || !closeProgramsTimer.Enabled))
-            {
-                SetProgramAutoCloser(true);
-            }
-        }
-
-
-        /// <summary>
-        /// Remove a folder eligible for automatic locking. The auto locker will be updated immediatly. Used automatically by the UnlockFolder method. The folder won't be unlocked but, the library won't try to lock it anymore.
-        /// This is marked as internal because usage outside the library is not recommended, for clarity it is better to use the UnlockFolder directly.
-        /// </summary>
-        /// <param name="folderPath"></param>
-        internal static void RemoveAutoLockFolder(string folderPath)
-        {
-            if (foldersToLock != null)
-            {
-                AutoLockFolder folderToRemove = null;
-                foreach (var folder in foldersToLock)
-                {
-                    if (folder.path.Equals(folderPath))
-                    {
-                        folderToRemove = folder;
-                    }
-                }
-                if (foldersToLock.Remove(folderToRemove))
-                {
-                    OnAutoLockFolderListChanged(new AutoLockChangedArgs
-                    {
-                        FolderAction = FolderListAction.Removed,
-                        folderToLock = folderToRemove
-                    });
-                }
-            }
-        }
-
-        /// <summary>
-        /// Unlock all the folders paths indicated in parameter
-        /// </summary>
-        /// <param name="foldersPathToUnlock"></param>
-        public static void UnlockFolders(string[] foldersPathToUnlock)
-        {
-            foreach (string folderPath in foldersPathToUnlock)
-            {
-                Console.WriteLine("Unlocking folder : " + folderPath);
-                UnlockFolder(folderPath);
-            }
-        }
-
-        /// <summary>
-        /// Remove a program eligible for automatic closing. The auto closer will be updated immediatly.
-        /// </summary>
-        /// <param name="programName"></param>
-        public static void RemoveAutoCloseProgram(string programName)
-        {
-            ProgramToClose prgmToClose = null;
-            foreach (var prgm in programsToClose)
-            {
-                if (prgm.programName.Equals(programName))
-                {
-                    prgmToClose = prgm;
-                }
-            }
-            if (programsToClose.Remove(prgmToClose))
-            {
-                OnAutoCloseProgramListChanged(new AutoCloseChangedArgs
-                {
-                    ProgramAction = ProgramListAction.Removed,
-                    programToClose = prgmToClose
-                });
-            }
-        }
-
-        /// <summary>
-        /// Start, Stop or Edit the folder auto locker. Can be started automatically with <see cref="CloseProgram(string)"/>
-        /// </summary>
-        /// <param name="enabled"></param>
-        /// <param name="closeDelayMilliseconds">The program close frequency, increase the value for better performance but less reactivity</param>
-        public static void SetProgramAutoCloser(bool enabled, int closeDelayMilliseconds = 200)
-        {
-            // Creating & init
-            if (closeProgramsTimer == null)
-            {
-                closeProgramsTimer = new Timer();
-                closeProgramsTimer.Elapsed += (s, e) =>
-                {
-                    long now = DateTime.Now.TimeOfDay.Ticks;
-                    foreach (var program in programsToClose)
-                    {
-                        if (program.startTime.Ticks < now && now < program.endTime.Ticks)
-                        {
-                            CloseProgram(program.programName);
-                        }
-                    }
-
-                    // Stop & free the global timer if no programs are registered
-                    if (programsToClose == null || programsToClose.Count == 0)
-                    {
-                        closeProgramsTimer.Stop();
-                        closeProgramsTimer.Dispose();
-                        Console.WriteLine("/// Auto Closer Disabled ///");
-                    }
-                };
-            }
-            // Updating
-            closeProgramsTimer.Interval = closeDelayMilliseconds;
-            if (enabled)
-            {
-                closeProgramsTimer.Start();
-                closeProgramsTimer.AutoReset = true;
-                Console.WriteLine("/// Auto Closer Enabled ///");
-            }
-            else
-            {
-                closeProgramsTimer.Stop();
-                Console.WriteLine("/// Auto Closer Disabled ///");
-            }
-        }
-
-        /// <summary>
-        /// Start, Stop or Edit the program auto closer. Can be started automatically with <see cref="LockFolder(string, bool)"/>
-        /// </summary>
-        /// <param name="enabled"></param>
-        /// <param name="lockDelayMilliseconds">In milliseconds</param>
-        public static void SetFolderAutoLocker(bool enabled, int lockDelayMilliseconds = 5000, bool isSilent = false)
-        {
-            // Creating & init
-            if (folderLockTimer == null)
-            {
-                folderLockTimer = new Timer();
-                folderLockTimer.Elapsed += (s, e) =>
-                {
-                    long now = DateTime.Now.Ticks;
-                    foreach (var folder in foldersToLock.ToList())
-                    {
-                        if (folder.startDate.Ticks < now && now < folder.endDate.Ticks)
-                        {
-                            LockFolder(folder.path, isSilent);
-                            HideAndProtectFolder(folder.path, true);
-                        }
-                        else
-                        {
-                            HideAndProtectFolder(folder.path, false);
-                            UnlockFolder(folder.path);
-                        }
-                    }
-
-                    // Stop & free the global timer if no folders are registered
-                    if (foldersToLock == null || foldersToLock.Count == 0)
-                    {
-                        folderLockTimer.Stop();
-                        folderLockTimer.Dispose();
-                    }
-                };
-            }
-            // Updating the timer
-            folderLockTimer.Interval = lockDelayMilliseconds;
-            if (enabled)
-            {
-                if (foldersToLock.Count == 0)
-                {
-                    Console.WriteLine("[Warning] Started the Auto Folder Locker, but no folders are registered");
-                }
-                folderLockTimer.AutoReset = true;
-                folderLockTimer.Start();
-                Console.WriteLine("/// Auto Locker Enabled ///");
-            }
-            else
-            {
-                folderLockTimer.Stop();
-                Console.WriteLine("/// Auto Locker Disabled ///");
-            }
-        }
-
-
-        /// <summary>
-        /// 'Unsafe' unlock method
-        /// </summary>
-        /// <param name="folderPath"></param>
-        private static void _UnlockFolder(string folderPath)
-        {
-            try
-            {
-                Console.WriteLine("Unlocking folder : " + folderPath);
-                Console.WriteLine("This can take some time...");
-                // First remove it from the autolock list if necessary
-                RemoveAutoLockFolder(folderPath);
-                // SetFileStreamAntiDelete(folderPath, false);
-                if (locks != null && locks.ContainsKey(folderPath))
-                {
-                    locks.Remove(folderPath);
-                }
-                DirectoryInfo dInfo = new DirectoryInfo(folderPath);
-                DirectorySecurity dSecurity = dInfo.GetAccessControl();
-                string adminUserName = Environment.UserName;// getting your adminUserName
-                FileSystemAccessRule fsa2 = new FileSystemAccessRule(adminUserName, FileSystemRights.ListDirectory | FileSystemRights.Delete, AccessControlType.Deny);
-                dSecurity.RemoveAccessRule(fsa2);
-                dInfo.SetAccessControl(dSecurity);
-                // SetFileStreamAntiDelete(folderPath, false);
-                Console.WriteLine("Unlocked");
-            }
-            catch (Exception ex)
-            {
-
-                Console.WriteLine(ex);
-                Console.ReadLine();
-            }
-        }
-
-        /// <summary>
-        /// 'Safe' unlock method. Unlocks a folder that is locked by the windows security system.
-        /// </summary>
-        /// <param name="folderPath"></param>
-        public static void UnlockFolder(string folderPath)
-        {
-            try
-            {
-                string path = folderPath;
-                if (Directory.Exists(path))
-                {
-                    string adminUserName = Environment.UserName;    // getting your adminUserName
-                    if (Directory.Exists(path))
-                    {
-                        _UnlockFolder(path);
-                        File.SetAttributes(path, FileAttributes.Normal);
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Error : {path} is not a directory, so we cannot lock it");
-                    }
-                }
-
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                Console.ReadLine();
-            }
-        }
-
-        /// <summary>
-        /// Unlock all previoulsy locked folders added with <see cref="NonAdmin.AddAutoLockFolder(string, DateTime, DateTime, bool, int)"/> 
-        /// <param name="disableAutoLocker">Also completely disable the auto locker, for performances purposes</param>
-        /// </summary>
-        public static void UnlockAllFolders(bool disableAutoLocker = true)
-        {
-            if (foldersToLock != null)
-            {
-                foreach (var folder in foldersToLock.ToList())
-                {
-                    UnlockFolder(folder.path);
-                }
-                Console.WriteLine("Unlocked " + NonAdmin.foldersToLock.Count + " folders");
-                if (disableAutoLocker)
-                {
-                    SetFolderAutoLocker(false, 5000, false);
-                }
-            }
-            else
-            {
-                Console.WriteLine("Didn't found any folder registered to unlock");
-            }
         }
 
         /// <summary>
@@ -669,13 +341,13 @@ namespace Bolter
                 }
             }
         }
-        static Dictionary<string, FileStream> locks = new Dictionary<string, FileStream>();
+        public static Dictionary<string, FileStream> fsLocks = new Dictionary<string, FileStream>();
         /// <summary>
         /// Prevent the deletion of folder or file for the given path to be deleted by indicating the message 'this file is being used by another process'. Works only while the calling application is alive. (the app that uses this function)
         /// </summary>
         /// <param name="path"></param>
         /// <param name="lockWithFileStream"></param>
-        private static void SetFileStreamAntiDelete(string path, bool lockWithFileStream)
+        internal static void SetFileStreamAntiDelete(string path, bool lockWithFileStream)
         {
             Console.WriteLine($"Starting filestream lock for {path}");
             string lockFilePath = null;
@@ -702,15 +374,15 @@ namespace Bolter
             // Locking the folder / file
             if (lockWithFileStream)
             {
-                if (locks == null)
+                if (fsLocks == null)
                 {
-                    locks = new Dictionary<string, FileStream>();
+                    fsLocks = new Dictionary<string, FileStream>();
                 }
-                if (!locks.ContainsKey(lockFilePath))
+                if (!fsLocks.ContainsKey(lockFilePath))
                 {
-                    var fs = new FileStream(lockFilePath, FileMode.Open);
+                    FileStream fs = new FileStream(lockFilePath, FileMode.Open);
                     fs.Lock(0, 0);
-                    locks.Add(lockFilePath,fs);
+                    fsLocks.Add(lockFilePath, fs);
                 }
                 else
                 {
@@ -720,12 +392,12 @@ namespace Bolter
             // Unlocking the folder / file
             else
             {
-                if (locks != null)
+                if (fsLocks != null)
                 {
-                    if (locks.ContainsKey(lockFilePath))
+                    if (fsLocks.ContainsKey(lockFilePath))
                     {
                         Console.WriteLine($"Unlocking Filestream thread for {lockFilePath}");
-                        locks.Remove(lockFilePath);
+                        fsLocks.Remove(lockFilePath);
                     }
                     else
                     {
@@ -735,39 +407,7 @@ namespace Bolter
             }
         }
 
-        /// <summary>
-        /// Lock the folder with windows security. It cannot be entered by any user after that, nor deleted. Should use <see cref="AddAutoLockFolder(string, DateTime, DateTime, bool, int)"/> if possible, because the unlocking is manual and not handled by the auto lock system
-        /// </summary>
-        /// <param name="folderPath">The path of the folder to lock</param>
-        /// <param name="silent">log info to the console if set to true</param>
-        public static void LockFolder(string folderPath, bool silent, bool fileStreamLock = true)
-        {
-            try
-            {
-                DirectoryInfo dInfo = new DirectoryInfo(folderPath);
-                var dSecurity = dInfo.GetAccessControl();
-                if (!silent)
-                    Console.WriteLine("LOCKING FOLDER : " + folderPath);
-                FileSystemAccessRule fsa = new FileSystemAccessRule(Environment.UserName, FileSystemRights.ListDirectory | FileSystemRights.Delete | FileSystemRights.DeleteSubdirectoriesAndFiles, AccessControlType.Deny);
-                dSecurity.AddAccessRule(fsa);
 
-                dInfo.SetAccessControl(dSecurity);
-
-                // One more security, in case the security rule is removed too quickly, the folder can be maintained alive by a file "in use" inside it. A filestream is used to maintain an open connection with a file
-                if (fileStreamLock)
-                {
-                    SetFileStreamAntiDelete(folderPath, fileStreamLock);
-                }
-
-                if (!silent)
-                    Console.WriteLine("Folder Locked successfully : " + folderPath);
-            }
-            catch (Exception e)
-            {
-                if (!silent)
-                    Console.WriteLine("Lock failed : " + e.Message);
-            }
-        }
 
         /// <summary>
         /// The selected folder will be hidden at a system level, it will also be read only
@@ -786,62 +426,26 @@ namespace Bolter
             }
         }
 
-        static Timer folderLockTimer;
-
-        /// <summary>
-        /// Automatically re-lock a folder after a certain period of time. Very powerful. Use with caution
-        /// </summary>
-        /// <param name="path">The path of the folder to lock</param>
-        /// <param name="beginDate">The date from which the folder will be locked</param>
-        /// <param name="endDate">The date from which the folder will stop being locked</param>
-        /// <param name="lockEnabled">Lock (true) or Unlock (false)</param>
-        /// <param name="autoLockDelayMilliseconds">The speed of relocking, if the folder has few files, a small value is required </param>
-        public static void AddAutoLockFolder(string path, DateTime beginDate, DateTime endDate, bool autoStartAutoLocker, int autoLockDelayMilliseconds = 5000)
-        {
-            if (beginDate > endDate)
-                throw new InvalidOperationException($"We cannot have a start date {beginDate.ToLongTimeString()} - {beginDate.ToLongDateString()}" +
-                    $" superior to an end date {endDate.ToLongTimeString()} - {endDate.ToLongDateString()}");
-
-            if (foldersToLock == null)
-                foldersToLock = new HashSet<AutoLockFolder>();
-
-            var folder = new AutoLockFolder(path, beginDate, endDate);
-
-            if (foldersToLock.Add(folder))
-            {
-                OnAutoLockFolderListChanged(new AutoLockChangedArgs
-                {
-                    FolderAction = FolderListAction.Added,
-                    folderToLock = folder
-                });
-            }
-
-            // Start the auto locker
-            if (autoStartAutoLocker && (folderLockTimer == null || !folderLockTimer.Enabled))
-            {
-                SetFolderAutoLocker(true, autoLockDelayMilliseconds, true);
-            }
-        }
 
         /// <summary>
         /// Return true if the Task manager is enabled in this session. The Task manager can be disabled even in the administrator session.
         /// </summary>
         /// <returns></returns>
-        public static bool GetTaskManagerActivation()
+        public static bool IsTaskManagerEnabled()
         {
-            RegistryKey regkey;
             string subKey = @"Software\Microsoft\Windows\CurrentVersion\Policies\System";
-            string result = "";
-            RegistryKey myKey = Registry.CurrentUser.OpenSubKey(subKey, false);
-            if (myKey.GetValue("DisableTaskMgr") != null)
+
+            using (RegistryKey myKey = Registry.CurrentUser.OpenSubKey(subKey, false))
             {
-                Console.WriteLine("Activating Task Manager");
-                regkey = Registry.CurrentUser.CreateSubKey(subKey);
-                result = regkey.GetValue("DisableTaskMgr").ToString();
-                regkey.Close();
+                if (myKey != null)
+                {
+                    int disableTaskMgrValue = (int)myKey.GetValue("DisableTaskMgr", 0);
+                    return disableTaskMgrValue == 0;
+                }
             }
-            if (result == "1") return true;
-            return false;
+
+            // Par défaut, retourne vrai si la clé n'existe pas.
+            return true;
         }
 
         /// <summary>
@@ -1264,13 +868,6 @@ namespace Bolter
             // throw new NotImplementedException("TODO : Create project BolterWatcher");
         }
 
-        public static void ClearAutoClosePrograms()
-        {
-            if (programsToClose != null)
-            {
-                programsToClose.Clear();
-            }
-        }
 
         /// <summary>
         /// Returns true if the program is started in administrator mode
@@ -1294,11 +891,9 @@ namespace Bolter
         {
             SetTaskbarVisible(true);
             SetStartup(false);
-            ClearAutoClosePrograms();
-            SetProgramAutoCloser(false, 1000);
+            ProgramToClose.DisposeProcessWatcher();
             ClearAllVirtualDesktops();
-            UnlockFolder(AppDomain.CurrentDomain.BaseDirectory);
-            UnlockAllFolders();
+            AutoLockFolder.UnlockAll();
             MakeThisProgramRespawnable(false, null);
             SetAltTabEnabled(true);
             Console.WriteLine("[BOLTER] Finished disabling Non Admin restrictions");
