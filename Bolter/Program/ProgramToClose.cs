@@ -2,11 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Management;
-using System.Threading;
-using System.Windows;
+using System.Xml.Linq;
 using static Bolter.NonAdmin;
 
-namespace Bolter
+namespace Bolter.Program
 {
     public class ProgramToClose : AbstractSecurity
     {
@@ -17,8 +16,7 @@ namespace Bolter
         /// Indicates day of the weeks where this program won't be automatically closed
         /// </summary>
         public readonly Dictionary<DayOfWeek, bool> noCloseDays;
-        private static ManagementEventWatcher watcher;
-        private static Thread processWatcherThread;
+        private static ProcessWatcher processWatcher;
 
         // TODO : see to use cancellation Token instead of thread abort and see if relevant
 
@@ -27,6 +25,7 @@ namespace Bolter
         /// </summary>
         public static event EventHandler<AutoCloseChangedArgs> AutoCloseProgramListChanged;
         internal static HashSet<ProgramToClose> programsToClose;
+        private readonly List<string> linkedPrograms = null;
 
         public static void OnAutoCloseProgramListChanged(AutoCloseChangedArgs args)
         {
@@ -39,13 +38,19 @@ namespace Bolter
             public ProgramToClose programToClose;
         }
 
-        public ProgramToClose(DateTime startDate, DateTime endDate, string programName, List<(TimeSpan startTime, TimeSpan endTime)> schedules, IDictionary<DayOfWeek, bool> noCloseDays) : base(startDate, endDate)
+        public ProgramToClose(DateTime startDate, DateTime endDate, string programName, List<(TimeSpan startTime, TimeSpan endTime)> schedules, IDictionary<DayOfWeek, bool> noCloseDays, List<string> linkedPrograms = null) : base(startDate, endDate)
         {
-            foreach ((TimeSpan startTime, TimeSpan endTime) schedule in schedules)
+            if (string.IsNullOrEmpty(programName))
             {
-                if (schedule.startTime > schedule.endTime)
+                throw new ArgumentException($"« {nameof(programName)} » ne peut pas être vide ou avoir la valeur Null.", nameof(programName));
+            }
+            if (schedules == null) schedules = new List<(TimeSpan startTime, TimeSpan endTime)>();
+
+            foreach ((TimeSpan startTime, TimeSpan endTime) in schedules)
+            {
+                if (startTime > endTime)
                 {
-                    throw new InvalidOperationException($"We cannot have a start date {schedule.startTime} superior to an end date {schedule.endTime}");
+                    throw new InvalidOperationException($"We cannot have a start date {startTime} superior to an end date {endTime}");
                 }
             }
 
@@ -64,6 +69,17 @@ namespace Bolter
             foreach (DayOfWeek dayOfWeek in Enum.GetValues(typeof(DayOfWeek)))
             {
                 this.noCloseDays.Add(dayOfWeek, false || (noCloseDays != null ? noCloseDays.ContainsKey(dayOfWeek) == true : false));
+            }
+
+            this.linkedPrograms = linkedPrograms;
+        }
+
+        public bool IsDateValid
+        {
+            get
+            {
+                DateTime now = DateTime.Now;
+                return now > startDate && now < endDate;
             }
         }
 
@@ -84,7 +100,7 @@ namespace Bolter
             return
             $"Program: {programName} " + Environment.NewLine +
             $"Locked: " + IsSecurityActive + Environment.NewLine + // TODO use a valid getter instead
-            $"Never Lock Days : " + String.Join(',', noCloseDays
+            $"Never Lock Days : " + string.Join(',', noCloseDays
                     .Where((day) => day.Value == true)
                     .Select((day) => day.Key.ToString()))
                     + Environment.NewLine +
@@ -94,70 +110,69 @@ namespace Bolter
             $"Time remaining: " + TimeRemaining;
         }
 
-        public bool IsFullDayLock => schedules.Any((schedule) => schedule.startTime == schedule.endTime);
+        public bool IsFullDayLock => schedules.Count == 0 || schedules.Any((schedule) => schedule.startTime == schedule.endTime);
+        public bool IsCurrentScheduleLocked
+        {
+            get
+            {
+                if (IsFullDayLock) return true;
+                foreach ((TimeSpan startTime, TimeSpan endTime) in schedules)
+                {
+                    Console.WriteLine(startTime + "/" + endTime);
+                    DateTime now = DateTime.Now;
+                    if (startTime > now.TimeOfDay && now.TimeOfDay < endTime)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        private static void CloseProgramIfFordbidden(string name)
+        {
+            ProgramToClose program = programsToClose.FirstOrDefault(program => program.programName.ToLower().Contains(name.ToLower()));
+            if (program != null)
+            {
+                Console.WriteLine("detected program start " + program.programName);
+                DateTime now = DateTime.Now;
+                if (program.IsDateValid)
+                {
+                    Console.WriteLine("Still valid date for close");
+                    if (program.IsCurrentScheduleLocked)
+                    {
+                        CloseProgram(program.programName);
+                        foreach (var linkedProgram in program.linkedPrograms)
+                        {
+                            CloseProgram(linkedProgram);
+                        }
+                    }
+                }
+            };
+        }
 
         private static void InitProcessWatcher()
         {
-            if (watcher != null)
+            if (processWatcher != null)
             {
-                Console.WriteLine("Watcher already enabled");
+                Console.WriteLine("Process watcher already enabled");
                 return;
             }
-            processWatcherThread = new Thread(() =>
+            processWatcher = new ProcessWatcher();
+            processWatcher.ProcessCreated += (sender, programEvent) =>
             {
-                while (true)
-                {
-
-                    watcher = new ManagementEventWatcher
-                    {
-                        Query = new WqlEventQuery("__InstanceCreationEvent", new TimeSpan(0, 0, 1), "TargetInstance isa \"Win32_Process\""),
-                    };
-                    // times out watcher.WaitForNextEvent in 5 seconds
-                    watcher.Options.Timeout = new TimeSpan(5, 0, 0);
-
-                    ManagementBaseObject e = watcher.WaitForNextEvent();
-
-                    string name = ((string)((ManagementBaseObject)e["TargetInstance"])["Name"]).Split(".exe")[0];
-                    string path = ((string)((ManagementBaseObject)e["TargetInstance"])["ExecutablePath"]);
-                    Console.WriteLine("Process {0} has been created, path is: {1}", name, path);
-                    ProgramToClose program = programsToClose.FirstOrDefault(program => program.programName.ToLower().Contains(name.ToLower()));
-
-                    // TODO : create getter, made of getters, to know when the program is simply locked and not just when the security  is within 2 dates
-                    if (program != null)
-                    {
-                        Console.WriteLine("detected program " + program.programName);
-                        DateTime now = DateTime.Now;
-                        if (now > program.startDate && now < program.endDate)
-                        {
-                            Console.WriteLine("Still valid date for close");
-                            foreach ((TimeSpan startTime, TimeSpan endTime) in program.schedules)
-                            {
-                                Console.WriteLine(startTime + "/" + endTime);
-
-                                if ((startTime > now.TimeOfDay && now.TimeOfDay < endTime) || program.IsFullDayLock)
-                                {
-                                    NonAdmin.CloseProgram(name);
-                                }
-                            }
-                        }
-                    };
-                    watcher.Stop();
-                }
-            });
-            processWatcherThread.Start();
-
+                CloseProgramIfFordbidden(programEvent.Name);
+            };
             Console.WriteLine($"Process Watcher for Auto Closing program is now enabled");
+
         }
 
 
         public static void DisposeProcessWatcher()
         {
             programsToClose?.Clear();
-            watcher?.Stop();
-            watcher?.Dispose();
-            processWatcherThread?.Abort();
+            processWatcher?.Stop();
         }
-
 
         public override bool Equals(object obj)
         {
@@ -171,7 +186,7 @@ namespace Bolter
 
         protected override void _PrepareEnableSecurity()
         {
-            if (processWatcherThread == null)
+            if (processWatcher == null)
             {
                 InitProcessWatcher();
             }
@@ -185,12 +200,13 @@ namespace Bolter
                 InitProcessWatcher();
             };
             programsToClose.Add(this);
+            CloseProgramIfFordbidden(programName);
         }
 
         protected override void _DisableSecurity()
         {
             programsToClose.Remove(this);
-            if (programsToClose.Count == 0 && processWatcherThread != null)
+            if (programsToClose.Count == 0 && processWatcher != null)
             {
                 DisposeProcessWatcher();
             }

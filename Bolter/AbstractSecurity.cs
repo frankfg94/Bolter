@@ -12,7 +12,7 @@ namespace Bolter
         // Each abstract security has a startDate and en endDate, as a security, so that it will one day stop
         public DateTime startDate
         {
-            get => _startDate; set
+            get => _startDate.HasValue ? _startDate.Value : DateTime.MinValue; set
             {
                 if (value > endDate) { throw new InvalidOperationException($"Start date ({startDate}) cannot be superior to end date ({endDate})"); }
                 _startDate = value;
@@ -20,15 +20,15 @@ namespace Bolter
         }
         public DateTime endDate
         {
-            get => _endDate; set
+            get => _endDate.HasValue ?  _endDate.Value : DateTime.MaxValue; set
             {
                 if (value < startDate) { throw new InvalidOperationException($"End date ({endDate}) cannot be inferior to start date ({startDate})"); }
                 _endDate = value;
             }
         } 
         
-        private DateTime _startDate;
-        private DateTime _endDate;
+        private DateTime? _startDate = null;
+        private DateTime? _endDate = null;
 
         public string TimeRemaining
         {

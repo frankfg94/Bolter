@@ -1,4 +1,5 @@
 ﻿using Bolter.BolterAdminApp;
+using Bolter.Program;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -258,6 +259,7 @@ namespace Bolter
             {
                 process.Kill();
             }
+            Console.WriteLine("Closed program : " + programName);
         }
 
         /// <summary>

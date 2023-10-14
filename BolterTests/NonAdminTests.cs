@@ -1,5 +1,4 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Bolter;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -8,6 +7,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Threading;
+using Bolter.Program;
 
 namespace Bolter.Tests
 {
