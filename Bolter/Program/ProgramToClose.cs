@@ -25,7 +25,7 @@ namespace Bolter.Program
         /// </summary>
         public static event EventHandler<AutoCloseChangedArgs> AutoCloseProgramListChanged;
         internal static HashSet<ProgramToClose> programsToClose;
-        private readonly List<string> linkedPrograms = null;
+        private readonly List<string> linkedPrograms = new List<string>();
 
         public static void OnAutoCloseProgramListChanged(AutoCloseChangedArgs args)
         {

@@ -162,7 +162,7 @@ namespace Bolter
                 string strOutput;
                 if (removePrivilege)
                 {
-                    startInfo.Arguments = string.Format("/C ntrights -U {0} -R SeSystemtimePrivilege", Environment.UserName);
+                    startInfo.Arguments = $"/C ntrights -U {Environment.UserName} -R SeSystemtimePrivilege";
                     process.StartInfo = startInfo;
                     process.StartInfo = startInfo;
                     process.StartInfo.UseShellExecute = false;

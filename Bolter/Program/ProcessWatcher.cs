@@ -16,7 +16,7 @@ namespace Bolter.Program
             watcher.Start();
         }
 
-        private void OnProcessCreated(object sender, EventArrivedEventArgs e)
+        public void OnProcessCreated(object sender, EventArrivedEventArgs e)
         {
             string name = ((string)((ManagementBaseObject)e.NewEvent["TargetInstance"])["Name"]).Split(".exe")[0];
             string path = (string)((ManagementBaseObject)e.NewEvent["TargetInstance"])["ExecutablePath"];

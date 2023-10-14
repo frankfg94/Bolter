@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk.Worker">
+﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net7.0-windows</TargetFramework>
     <UserSecretsId>dotnet-AdminBolterService-B2CE49A8-A2F9-458C-80FB-4B50BD7F4BF3</UserSecretsId>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
