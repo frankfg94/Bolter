@@ -76,7 +76,7 @@ namespace Bolter.BolterAdminApp
             Console.WriteLine("Welcome! Listening for messages from the server ");
             commandThread = new Thread(ListenForClientCommands);
             commandThread.Start();
-            while (true)
+            while  (true)
             {
                 if (keyboardCommand != "" || comm.GetStream().DataAvailable)
                 {

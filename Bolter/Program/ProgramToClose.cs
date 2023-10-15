@@ -71,7 +71,10 @@ namespace Bolter.Program
                 this.noCloseDays.Add(dayOfWeek, false || (noCloseDays != null ? noCloseDays.ContainsKey(dayOfWeek) == true : false));
             }
 
-            this.linkedPrograms = linkedPrograms;
+            if(linkedPrograms != null)
+            {
+                this.linkedPrograms = linkedPrograms;
+            }
         }
 
         public bool IsDateValid

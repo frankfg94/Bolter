@@ -172,6 +172,10 @@ namespace Bolter
         /// </summary>
         public static void UnlockAll(bool disableAutoLocker = true)
         {
+            Console.WriteLine("Unlocking base directory : " + AppDomain.CurrentDomain.BaseDirectory);
+            AutoLockFolder f = new AutoLockFolder(DateTime.Now, DateTime.Now.AddMinutes(1), AppDomain.CurrentDomain.BaseDirectory);
+            f.DisableSecurity();
+
             if (foldersToLock != null)
             {
                 foreach (AutoLockFolder folder in foldersToLock.ToList())
