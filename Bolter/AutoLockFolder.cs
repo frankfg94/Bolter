@@ -288,6 +288,9 @@ namespace Bolter
             }
         }
 
-
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(IsSecurityActive, startDate, endDate, TimeRemaining, Kind, path);
+        }
     }
 }
