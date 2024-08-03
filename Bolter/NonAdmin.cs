@@ -275,6 +275,21 @@ namespace Bolter
             return service != null;
         }
 
+        public static bool IsServiceRunning(string serviceName)
+        {
+                // Créer une instance de ServiceController pour le service spécifié
+                ServiceController service = new ServiceController(serviceName);
+
+                try
+                {
+                    return service.Status == ServiceControllerStatus.Running;
+                }
+                catch (InvalidOperationException)
+                {
+                    return false;
+                }
+        }
+
         /// <summary>
         /// Callback to ignore or enable Alt + Tab
         /// </summary>
@@ -649,7 +664,7 @@ namespace Bolter
         }
 
         /// <summary>
-        /// Start app if it is detected in the process list
+        /// Start app if it is detected in the process list, restart it when killed
         /// </summary>
         /// <param name="processPath"></param>
         private static void RespawnAppIfNeeded(string processPath, string arguments = "")

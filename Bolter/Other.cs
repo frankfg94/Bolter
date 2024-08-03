@@ -61,11 +61,17 @@ namespace Bolter
             Console.ResetColor();
         }
 
-        public static void PrintColored(string message, ConsoleColor color)
+        public static void PrintColored(string message, ConsoleColor color, bool jump = true)
         {
             var oldColor = Console.ForegroundColor;
             Console.ForegroundColor = color;
-            Console.WriteLine(message);
+            if(jump)
+            {
+                Console.WriteLine(message);
+            } else
+            {
+                Console.Write(message);
+            }
             Console.ResetColor();
         }
 

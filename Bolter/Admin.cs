@@ -21,6 +21,8 @@ namespace Bolter
     /// </summary>
     public static class Admin
     {
+        public const String defaultAdminServiceExeName = "AdminBolterService";
+        public const string defaultServiceName = "Bolter Admin Service";
 
         /// <summary>
         /// Access token for impersonation
@@ -63,7 +65,7 @@ namespace Bolter
             public int Attributes;
         }
 
-        public static void StartService(string serviceName = "Bolter Admin Service", string adminAppName = "BolterAdminApp", bool enableUACprompt = true)
+        public static void StartService(string serviceName = defaultServiceName, string adminAppName = "BolterAdminApp", bool enableUACprompt = true)
         {
             if (enableUACprompt && !NonAdmin.IsInAdministratorMode())
             {
@@ -254,7 +256,7 @@ namespace Bolter
         /// <param name="autoStart">Enable auto starting of the service</param>
         /// <param name="enableUACprompt">If set to true, the service can be installed with an UAC prompt. If not, Bolter will try to use the admin command executor app</param>
         /// <param name="serviceName">The name of the service to reinstall/install for executing bolter commands</param>
-        public static void InstallService(string serviceExeName = "AdminBolterService", string serviceName = "Bolter Admin Service",
+        public static void InstallService(string serviceExeName = defaultAdminServiceExeName, string serviceName = defaultServiceName,
             string adminAppName = "BolterAdminApp", bool autoStart = true, bool enableUACprompt = true)
         {
             Console.WriteLine("InstallService");
@@ -273,12 +275,10 @@ namespace Bolter
             {
                 Console.WriteLine(">> Service to install : " + adminAppName);
                 string adminAppPath = @$"{Globals.AdminAppParentFolder}\{adminAppName}.exe";
-                if(!File.Exists(adminAppPath))
+                if (!File.Exists(adminAppPath))
                 {
-                    Console.WriteLine("Exe not found here, searching " + adminAppName + " in path : " +  Globals.MOTIVATOR_FOLDER_PATH);
+                    Console.WriteLine("Exe not found here, searching " + adminAppName + " in path : " + Globals.MOTIVATOR_FOLDER_PATH);
                     adminAppPath = Other.searchForExe(adminAppName, Globals.MOTIVATOR_FOLDER_PATH);
-                        
-                    // TODO recursive search for BolterAdminApp
                 }
                 Console.WriteLine(">> Installation location: " + adminAppPath);
                 Stopwatch s = new Stopwatch();
@@ -565,7 +565,7 @@ namespace Bolter
             Admin.SetBatchAndCMDBlock(false, username: "franc");
             Console.Write("     Success !");
 
-            if(appPath != null && File.Exists(appPath))
+            if (appPath != null && File.Exists(appPath))
             {
                 Console.Write("\n3) Disabling the software autostart on safe mode...");
                 SetStartupSafeMode(false, appPath);
