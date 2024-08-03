@@ -22,13 +22,22 @@ namespace Bolter
     public static class Admin
     {
         public const String defaultAdminServiceExeName = "AdminBolterService";
-        public const string defaultServiceName = "Bolter Admin Service";
+        public const String defaultServiceName = "Bolter Admin Service";
 
         /// <summary>
         /// Access token for impersonation
         /// </summary>
         public static SafeAccessTokenHandle phToken;
-        private static IntPtr adminToken;
+
+
+        internal static string SearchFolderForInstallation;
+        private static readonly IntPtr adminToken;
+        /// <summary>
+        /// TODO put this in a class or some code structure that allows this be configured with other recommanded or mandatory variables
+        /// It is HIGHLY RECOMMENDED to assign this variable to provide a reliable way to search for variables
+        /// </summary>
+
+
         /// <summary>
         /// Install the ntRights utility in System32, ntRights can be used to revoke certain rights from administrators such as the ability to change the system date.
         /// The only drawback for using this, is that it seems to be necessary to reboot the computer session to apply the changes.
@@ -105,7 +114,7 @@ namespace Bolter
 
         private static void _SetBatchAndCMDBlock(bool block, string currentUsername)
         {
-            var p = (Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "logBolterService.txt"));
+            string p = (Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "logBolterService.txt"));
             try
             {
                 NTAccount f = new NTAccount(currentUsername);
@@ -113,7 +122,7 @@ namespace Bolter
                 String sidString = s.ToString();
 
                 string subKey = @"\Software\Policies\Microsoft\Windows\System";
-                var key = Registry.Users.CreateSubKey(sidString + subKey, true);
+                RegistryKey key = Registry.Users.CreateSubKey(sidString + subKey, true);
                 if (key != null)
                 {
                     File.AppendAllText(p, sidString);
@@ -223,23 +232,44 @@ namespace Bolter
             cmd.BeginOutputReadLine();
             cmd.BeginErrorReadLine();
 
+            ServiceController service = new ServiceController(serviceName);
             using (StreamWriter sw = cmd.StandardInput)
             {
                 if (sw.BaseStream.CanWrite)
                 {
                     Console.WriteLine($"sc stop \"{serviceName}\"");
                     sw.WriteLine($"sc stop \"{serviceName}\"");
-                    Thread.Sleep(5000);
+                    service.WaitForStatus(ServiceControllerStatus.Stopped);
+
                     Console.WriteLine(">>> Service stopped");
 
                     Console.WriteLine($"sc delete \"{serviceName}\"");
                     sw.WriteLine($"sc delete \"{serviceName}\"");
-                    Thread.Sleep(5000);
+                    WaitForServiceDeletion(serviceName);
                     Console.WriteLine(">>> Service deleted");
                 }
             }
             cmd.WaitForExit();
 
+        }
+
+        private static void WaitForServiceDeletion(string serviceName)
+        {
+            const int MAX_RETRY_COUNT = 20;
+            const int SINGLE_RETRY_SLEEP_DURATION = 5000;
+            int retryCount = 0;
+            if (NonAdmin.IsServiceRunning(serviceName))
+            {
+                if (retryCount < MAX_RETRY_COUNT)
+                {
+                    retryCount++;
+                    Thread.Sleep(500);
+                }
+                else
+                {
+                    Other.Warn("Service " + serviceName + " was not deleted, Timeout of " + (MAX_RETRY_COUNT * SINGLE_RETRY_SLEEP_DURATION) + "ms");
+                }
+            }
         }
 
 
@@ -260,7 +290,6 @@ namespace Bolter
             string adminAppName = "BolterAdminApp", bool autoStart = true, bool enableUACprompt = true)
         {
             Console.WriteLine("InstallService");
-            Globals.CheckDependencies();
             if (NonAdmin.DoesServiceExist(serviceName, Environment.MachineName))
             {
                 Console.WriteLine("[Note] Admin service is already installed, it will be reinstalled now");
@@ -274,12 +303,12 @@ namespace Bolter
             if (enableUACprompt && !NonAdmin.IsInAdministratorMode())
             {
                 Console.WriteLine(">> Service to install : " + adminAppName);
-                string adminAppPath = @$"{Globals.AdminAppParentFolder}\{adminAppName}.exe";
-                if (!File.Exists(adminAppPath))
+                if (String.IsNullOrEmpty(SearchFolderForInstallation))
                 {
-                    Console.WriteLine("Exe not found here, searching " + adminAppName + " in path : " + Globals.MOTIVATOR_FOLDER_PATH);
-                    adminAppPath = Other.searchForExe(adminAppName, Globals.MOTIVATOR_FOLDER_PATH);
+                    Other.Warn("[!] Root folder to search recursively for Bolter executables not found, installation might fail. Assign the variable to remove this message");
                 }
+                string adminAppPath = Other.searchForExe(adminAppName + ".exe", !String.IsNullOrEmpty(SearchFolderForInstallation) ? SearchFolderForInstallation : Globals.AdminAppParentFolder);
+                Console.WriteLine("Installing with Path : " + adminAppPath);
                 Console.WriteLine(">> Installation location: " + adminAppPath);
                 Stopwatch s = new Stopwatch();
                 s.Start();
@@ -326,19 +355,19 @@ namespace Bolter
                     return $"[STEP {curStep++}/{stepCount}]";
                 };
 
-                string serviceAppPath = Other.searchForExe(serviceExeName, Globals.MOTIVATOR_FOLDER_PATH);
+                string serviceAppPath = Other.searchForExe(serviceExeName, Globals.AdminAppParentFolder);
                 Console.WriteLine("Installing service on : " + serviceAppPath);
                 if (!File.Exists(serviceAppPath))
                 {
                     Console.WriteLine("The admin app doesn't exist for the paths listed above, ensure that you created the .exe of the service on these paths");
                     return;
                 }
-                var commandStopService = $"sc stop \"{serviceName}\"";
-                var commandCreateService = $"sc create \"{serviceName}\" binPath=" + Other.EscapeCMD(serviceAppPath);
-                var commandDeleteService = $"sc delete \"{serviceName}\"";
-                var commandQueryService = $"sc query \"{serviceName}\"";
-                var commandAutoStartService = $"sc config \"{serviceName}\" start=\"auto\"";
-                var commandRunService = $"sc start \"{serviceName}\"";
+                string commandStopService = $"sc stop \"{serviceName}\"";
+                string commandCreateService = $"sc create \"{serviceName}\" binPath=" + Other.EscapeCMD(serviceAppPath);
+                string commandDeleteService = $"sc delete \"{serviceName}\"";
+                string commandQueryService = $"sc query \"{serviceName}\"";
+                string commandAutoStartService = $"sc config \"{serviceName}\" start=\"auto\"";
+                string commandRunService = $"sc start \"{serviceName}\"";
                 Console.WriteLine("-------------   Preview of the service installation commands ---------------");
                 Console.WriteLine(commandStopService);
                 Console.WriteLine(commandDeleteService);
@@ -355,12 +384,12 @@ namespace Bolter
                     {
                         Other.PrintColored($"{GetStep()} {commandStopService}", ConsoleColor.Green);
                         sw.WriteLine(commandStopService);
-                        Thread.Sleep(5000);
+                        service.WaitForStatus(ServiceControllerStatus.Stopped);
                         Console.WriteLine(">>> Service stopped");
 
                         Other.PrintColored($"{GetStep()} {commandDeleteService} ", ConsoleColor.Green);
                         sw.WriteLine(commandDeleteService);
-                        Thread.Sleep(5000);
+                        WaitForServiceDeletion(serviceName);
                         Console.WriteLine(">>> Service deleted");
 
                         Other.PrintColored($"{GetStep()} {commandCreateService} ", ConsoleColor.Green);
@@ -519,7 +548,7 @@ namespace Bolter
         /// <param name="hoursBeforeUnlock"></param>
         private static void EnableTaskManagerSecurity(int hoursBeforeUnlock)
         {
-            var t = new System.Timers.Timer
+            System.Timers.Timer t = new System.Timers.Timer
             {
                 Interval = hoursBeforeUnlock * 3600 * 1000,
                 AutoReset = false
@@ -623,9 +652,9 @@ namespace Bolter
             }
             else
             {
-                var text = File.ReadAllLines(path);
+                string[] text = File.ReadAllLines(path);
                 List<string> newText = new List<string>();
-                foreach (var line in text)
+                foreach (string line in text)
                 {
                     if (!line.Contains(domain))
                     {

@@ -4,6 +4,9 @@ using System.IO;
 
 namespace Bolter
 {
+    /// <summary>
+    /// File containing various utilities
+    /// </summary>
     public static class Other
     {
         private const string Value = "----------------// BOLTER WARNING //-------------------";
@@ -144,6 +147,7 @@ namespace Bolter
                 Console.WriteLine("Checking " + adminAppPath);
                 if (!File.Exists(adminAppPath))
                 {
+                    Console.WriteLine("Not found at path : " + adminAppPath);
                     Bolter.Other.Warn("[X] Failed to find the UAC service installer on all listed paths, service can't be started");
                     return;
                 }

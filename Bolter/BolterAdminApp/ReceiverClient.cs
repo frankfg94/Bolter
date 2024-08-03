@@ -3,7 +3,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,7 +17,7 @@ namespace Bolter.BolterAdminApp
         Process bridge;
         TcpClient comm;
         Thread commandThread;
-        IntPtr userToken = IntPtr.Zero;
+        readonly IntPtr userToken = IntPtr.Zero;
 
         /// <summary>
         /// TODO configure for waiting some messages
@@ -27,40 +26,40 @@ namespace Bolter.BolterAdminApp
         {
 
 
-          
+
             while (true)
             {
                 // keyboardCommand = Console.ReadLine();
                 // We send data here
                 //if (keyboardCommand != string.Empty)
-               // {
+                // {
 
-               //     var msg = keyboardCommand;
+                //     var msg = keyboardCommand;
 
-               //     Net.SendMsg(comm.GetStream(), msg);
-                    if (comm.GetStream().DataAvailable)
+                //     Net.SendMsg(comm.GetStream(), msg);
+                if (comm.GetStream().DataAvailable)
+                {
+                    string responseMsg = Net.RcvMsg(comm.GetStream());
+                    if (responseMsg != null)
                     {
-                        var responseMsg = Net.RcvMsg(comm.GetStream());
-                        if (responseMsg != null)
+                        try
                         {
-                            try
-                            {
-                                DoOperationClientSide(responseMsg);
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine("Error parsing & processing in client : " + ex);
-                            }
+                            DoOperationClientSide(responseMsg);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Error parsing & processing in client : " + ex);
                         }
                     }
+                }
                 Thread.Sleep(1000);
-               // }
+                // }
             }
         }
 
-    
 
-        string keyboardCommand = "";
+
+        readonly string keyboardCommand = "";
         /// <summary>
         /// Connect to the Bolter Windows Service using a Tcp connection. The Bolter Windows Service can run UAC commands (methods for the 'Admin' class) for the Bolter library.
         /// This creates a bidirectionnal/duplex communication, where the client will send commands to the Bolter Service, but will also display the service's output & errors. 
@@ -69,20 +68,21 @@ namespace Bolter.BolterAdminApp
         /// <param name="PORT"></param>
         public void ConnectToBolterService(string IP_SERVER_ADDRESS, int PORT)
         {
-            new Thread(() => {
-            Console.WriteLine("[CLIENT] Creating TcpClient");
-            comm = new TcpClient(IP_SERVER_ADDRESS, PORT);
-            Console.WriteLine("[CLIENT] Connection OK");
-            Console.WriteLine("Welcome! Listening for messages from the server ");
-            commandThread = new Thread(ListenForClientCommands);
-            commandThread.Start();
-            while  (true)
+            new Thread(() =>
             {
-                if (keyboardCommand != "" || comm.GetStream().DataAvailable)
+                Console.WriteLine("[CLIENT] Creating TcpClient");
+                comm = new TcpClient(IP_SERVER_ADDRESS, PORT);
+                Console.WriteLine("[CLIENT] Connection OK");
+                Console.WriteLine("Welcome! Listening for messages from the server ");
+                commandThread = new Thread(ListenForClientCommands);
+                commandThread.Start();
+                while (true)
                 {
-                    var keyboardTemp = keyboardCommand;
-                    // On reçoit quelque chose, comme par exemple un message
-                    var msg = Net.RcvMsg(comm.GetStream());
+                    if (keyboardCommand != "" || comm.GetStream().DataAvailable)
+                    {
+                        string keyboardTemp = keyboardCommand;
+                        // On reçoit quelque chose, comme par exemple un message
+                        string msg = Net.RcvMsg(comm.GetStream());
                         try
                         {
                             DoOperationClientSide(msg);
@@ -91,8 +91,8 @@ namespace Bolter.BolterAdminApp
                         {
                             Console.WriteLine("Error parsing & processing in client : " + ex);
                         }
+                    }
                 }
-            }
 
             }).Start();
         }
@@ -104,7 +104,7 @@ namespace Bolter.BolterAdminApp
 
         public void SendMessage(string json)
         {
-            while(comm == null)
+            while (comm == null)
             {
                 Thread.Sleep(100);
             }
@@ -114,7 +114,7 @@ namespace Bolter.BolterAdminApp
 
         public void RequestImpersonation(int logonType)
         {
-            string userName = "franc"; 
+            string userName = "franc";
             string password = "mobius94";
             string domain = Environment.UserDomainName;
             JObject o = new JObject();
@@ -232,12 +232,15 @@ namespace Bolter.BolterAdminApp
 
         public void WaitForServerResponse(int waitMilleseconds)
         {
-            
+
         }
 
         // A bridge process is required to make ipc work with uac .... ( 3 processes : process executing the command - uac bridge process - uac process)
         public void ConnectToBridge(string commandExecutorExePath, string bridgeExePath, string thisAppExePath, string[] commands)
         {
+            if (!File.Exists(bridgeExePath)) { throw new FileNotFoundException("Bridge exe not found ", bridgeExePath); }
+            if (!File.Exists(commandExecutorExePath)) { throw new FileNotFoundException("Command executor not found ", commandExecutorExePath); }
+            if (!File.Exists(commandExecutorExePath)) { throw new FileNotFoundException("Executable for this app path is invalid ", thisAppExePath); }
 
             bridge = new Process();
             if (thisAppExePath != null && bridgeExePath != null && commandExecutorExePath != null)
@@ -252,7 +255,7 @@ namespace Bolter.BolterAdminApp
                 // Pass the client process a handle to the server.
                 bridge.StartInfo.ArgumentList.Add("uac:" + commandExecutorExePath);
                 bridge.StartInfo.ArgumentList.Add("p:" + thisAppExePath);
-                foreach (var c in commands)
+                foreach (string c in commands)
                 {
                     bridge.StartInfo.ArgumentList.Add(c);
                 }
@@ -297,7 +300,7 @@ namespace Bolter.BolterAdminApp
                 {
                     default:
                         Console.ForegroundColor = ConsoleColor.Green;
-                            Console.Write("\n[SERVER] ");
+                        Console.Write("\n[SERVER] ");
                         Console.ResetColor();
                         Console.Write(msg);
                         break;
