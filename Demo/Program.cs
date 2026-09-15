@@ -192,9 +192,10 @@ namespace Demo
         {
             string path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\BUNKER";
             Directory.CreateDirectory(path);
-            NonAdmin.LockFolder(path, false);
+            var folder = new AutoLockFolder(DateTime.Now, DateTime.Now.AddMinutes(1), path);
+            folder.LockFolder(false);
             Thread.Sleep(20000);
-            NonAdmin.UnlockFolder(path);
+            folder.UnlockFolder();
             Console.ReadLine();
         }
     }

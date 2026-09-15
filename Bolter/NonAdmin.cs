@@ -550,11 +550,7 @@ namespace Bolter
         /// </summary>
         public static void CloseFileExplorer()
         {
-            var shellWindows = new SHDocVw.ShellWindows();
-            foreach (SHDocVw.InternetExplorer ie in shellWindows)
-            {
-                ie.Quit();
-            }
+            ShellWindowsHelper.CloseAll();
         }
 
         /// <summary>
@@ -563,14 +559,7 @@ namespace Bolter
         /// <param name="specificWindowUrl"></param>
         public static void CloseFileExplorer(string specificWindowUrl)
         {
-            var shellWindows = new SHDocVw.ShellWindows();
-            foreach (SHDocVw.InternetExplorer ie in shellWindows)
-            {
-                if (ie.LocationURL.Equals(specificWindowUrl))
-                {
-                    ie.Quit();
-                }
-            }
+            ShellWindowsHelper.CloseSpecific(specificWindowUrl);
         }
 
         /// <summary>
@@ -579,15 +568,7 @@ namespace Bolter
         /// <returns></returns>
         public static string[] GetFileExplorerPaths()
         {
-            var shellWindows = new SHDocVw.ShellWindows();
-            var tab = new string[shellWindows.Count];
-            int index = 0;
-            foreach (SHDocVw.InternetExplorer ie in shellWindows)
-            {
-                tab[index] = ie.LocationURL;
-                index++;
-            }
-            return tab;
+            return ShellWindowsHelper.GetPaths();
         }
 
         /// <summary>
@@ -820,7 +801,11 @@ namespace Bolter
         public static void MoveWindowToDesktop(IntPtr windowHandle, bool bolterDesktop)
         {
             var id = bolterDesktop ? createdDesktopHandle : baseDesktopHandle;
-            VirtualDesktopHelper.MoveToDesktop(windowHandle, VirtualDesktop.FromId(id));
+            var desktop = VirtualDesktop.FromId(id);
+            if (desktop != null)
+            {
+                VirtualDesktop.MoveToDesktop(windowHandle, desktop);
+            }
         }
 
         #endregion

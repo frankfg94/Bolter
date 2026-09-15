@@ -1,6 +1,9 @@
-﻿using Microsoft.Win32;
+﻿using Bolter;
+using Bolter.Program;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.DirectoryServices;
 using System.IO;
@@ -8,9 +11,12 @@ using System.IO.Pipes;
 using System.Linq;
 using System.Resources;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
 using System.Security.Principal;
 using System.ServiceProcess;
 using System.Threading;
+using WindowsDesktop;
+using Timer = System.Timers.Timer;
 
 namespace BolterAdminService
 {
@@ -566,7 +572,12 @@ namespace BolterAdminService
             if (programsToClose == null)
                 programsToClose = new HashSet<ProgramToClose>();
 
-            programsToClose.Add(new ProgramToClose(programName, startTime, endTime));
+            programsToClose.Add(new ProgramToClose(
+                DateTime.Today,
+                DateTime.Today.AddDays(1),
+                programName,
+                new List<(TimeSpan startTime, TimeSpan endTime)> { (startTime, endTime) },
+                null));
 
             // Start the auto closer
             if (autoStartAutoCloser && (closeProgramsTimer == null || !closeProgramsTimer.Enabled))
@@ -642,7 +653,9 @@ namespace BolterAdminService
                     long now = DateTime.Now.TimeOfDay.Ticks;
                     foreach (var program in programsToClose)
                     {
-                        if (program.startTime.Ticks < now && now < program.endTime.Ticks)
+                        var isScheduleLocked = program.IsFullDayLock || program.schedules.Any(schedule =>
+                            schedule.startTime.Ticks < now && now < schedule.endTime.Ticks);
+                        if (isScheduleLocked)
                         {
                             CloseProgram(program.programName);
                         }
@@ -1009,7 +1022,7 @@ namespace BolterAdminService
             if (foldersToLock == null)
                 foldersToLock = new HashSet<AutoLockFolder>();
 
-            foldersToLock.Add(new AutoLockFolder(path, beginDate, endDate));
+            foldersToLock.Add(new AutoLockFolder(beginDate, endDate, path));
 
             // Start the auto locker
             if (autoStartAutoLocker && (folderLockTimer == null || !folderLockTimer.Enabled))
@@ -1178,11 +1191,7 @@ namespace BolterAdminService
         /// </summary>
         public static void CloseFileExplorer()
         {
-            var shellWindows = new SHDocVw.ShellWindows();
-            foreach (SHDocVw.InternetExplorer ie in shellWindows)
-            {
-                ie.Quit();
-            }
+            ShellWindowsHelper.CloseAll();
         }
 
         /// <summary>
@@ -1191,14 +1200,7 @@ namespace BolterAdminService
         /// <param name="specificWindowUrl"></param>
         public static void CloseFileExplorer(string specificWindowUrl)
         {
-            var shellWindows = new SHDocVw.ShellWindows();
-            foreach (SHDocVw.InternetExplorer ie in shellWindows)
-            {
-                if (ie.LocationURL.Equals(specificWindowUrl))
-                {
-                    ie.Quit();
-                }
-            }
+            ShellWindowsHelper.CloseSpecific(specificWindowUrl);
         }
 
         /// <summary>
@@ -1207,15 +1209,7 @@ namespace BolterAdminService
         /// <returns></returns>
         public static string[] GetFileExplorerPaths()
         {
-            var shellWindows = new SHDocVw.ShellWindows();
-            var tab = new string[shellWindows.Count];
-            int index = 0;
-            foreach (SHDocVw.InternetExplorer ie in shellWindows)
-            {
-                tab[index] = ie.LocationURL;
-                index++;
-            }
-            return tab;
+            return ShellWindowsHelper.GetPaths();
         }
 
         /// <summary>
@@ -1444,7 +1438,11 @@ namespace BolterAdminService
         public static void MoveWindowToDesktop(IntPtr windowHandle, bool bolterDesktop)
         {
             var id = bolterDesktop ? createdDesktopHandle : baseDesktopHandle;
-            VirtualDesktopHelper.MoveToDesktop(windowHandle, VirtualDesktop.FromId(id));
+            var desktop = VirtualDesktop.FromId(id);
+            if (desktop != null)
+            {
+                VirtualDesktop.MoveToDesktop(windowHandle, desktop);
+            }
         }
 
         #endregion
@@ -1542,3 +1540,4 @@ namespace BolterAdminService
         }
     }
     }
+}
